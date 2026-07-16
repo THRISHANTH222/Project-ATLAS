@@ -8,8 +8,10 @@ from app.middleware.auth_middleware import FirebaseAuthMiddleware
 from app.middleware.correlation_id import CorrelationIdMiddleware
 from app.middleware.error_handler import register_error_handlers
 from app.middleware.logging_middleware import LoggingMiddleware
-from app.routers import ai, auth, company, health, storage
+from app.routers import ai, auth, company, health, storage, uploads
 from app.utils.logger import get_logger, setup_logging
+
+from app.utils.firebase import initialize_firebase
 
 # Load configurations
 settings = get_settings()
@@ -25,7 +27,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(
         f"Starting {settings.APP_NAME} in environment: {settings.ENVIRONMENT}..."
     )
-    # Perform pre-flight connection verifications, setup caching, warm-up LLM connections, etc.
+    # Initialize Firebase Admin SDK eagerly at startup to resolve initialization order dependencies
+    initialize_firebase(settings)
     yield
     # Clear client sessions, close database connections
     logger.info(f"Shutting down {settings.APP_NAME}...")
@@ -60,12 +63,16 @@ def create_app() -> FastAPI:
     app.add_middleware(CorrelationIdMiddleware)
 
     # Configure CORS
+    allowed_origins = [origin for origin in settings.CORS_ORIGINS if origin != "*"]
+    if settings.ENVIRONMENT.lower() == "production" and "*" in settings.CORS_ORIGINS:
+        logger.warning("Wildcard origin '*' detected in CORS_ORIGINS in production mode. Restricting wildcard access.")
+        
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=allowed_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Correlation-ID", "Accept", "Origin"],
         expose_headers=["X-Correlation-ID"],
     )
 
@@ -78,6 +85,7 @@ def create_app() -> FastAPI:
     app.include_router(company.router)
     app.include_router(storage.router)
     app.include_router(ai.router)
+    app.include_router(uploads.router)
 
     return app
 

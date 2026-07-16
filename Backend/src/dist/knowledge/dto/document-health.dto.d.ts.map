@@ -1,0 +1,1 @@
+{"version":3,"file":"document-health.dto.d.ts","sourceRoot":"","sources":["../../../knowledge/dto/document-health.dto.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,YAAY,EAAE,MAAM,2BAA2B,CAAC;AAEzD;;GAEG;AACH,MAAM,WAAW,uBAAuB;IACtC,UAAU,EAAE,MAAM,CAAC;IACnB,SAAS,EAAE,MAAM,CAAC;IAClB,MAAM,EAAE,YAAY,CAAC;IACrB,MAAM,EAAE,MAAM,EAAE,CAAC;IACjB,SAAS,EAAE,MAAM,CAAC;CACnB"}

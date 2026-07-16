@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from google.cloud import storage
@@ -19,7 +20,10 @@ class GcsStorageService(IStorageService):
     def __init__(self, settings: Settings):
         self.settings = settings
         self.bucket_name = settings.GCS_BUCKET_NAME
-        self.use_mock = settings.ENVIRONMENT.lower() == "development" and not settings.FIREBASE_CREDENTIALS_PATH
+        self.use_mock = (
+            settings.ENVIRONMENT.lower() in ("development", "testing")
+            and not settings.FIREBASE_CREDENTIALS_PATH
+        )
         self.client = None
 
         if not self.use_mock:
@@ -44,10 +48,13 @@ class GcsStorageService(IStorageService):
             return f"https://storage.googleapis.com/{self.bucket_name}/{destination_blob_name}"
 
         try:
-            bucket = self.client.bucket(self.bucket_name) # type: ignore
-            blob = bucket.blob(destination_blob_name)
-            blob.upload_from_string(file_content, content_type=content_type)
-            return blob.public_url
+            def _upload():
+                bucket = self.client.bucket(self.bucket_name)  # type: ignore
+                blob = bucket.blob(destination_blob_name)
+                blob.upload_from_string(file_content, content_type=content_type)
+                return blob.public_url
+
+            return await asyncio.to_thread(_upload)
         except Exception as e:
             raise StorageError(f"Failed to upload file to storage: {str(e)}")
 
@@ -58,11 +65,14 @@ class GcsStorageService(IStorageService):
             return self.mock_storage[blob_name]["content"]
 
         try:
-            bucket = self.client.bucket(self.bucket_name) # type: ignore
-            blob = bucket.blob(blob_name)
-            if not blob.exists():
-                raise StorageError(f"File {blob_name} not found in storage.")
-            return blob.download_as_bytes()
+            def _download():
+                bucket = self.client.bucket(self.bucket_name)  # type: ignore
+                blob = bucket.blob(blob_name)
+                if not blob.exists():
+                    raise StorageError(f"File {blob_name} not found in storage.")
+                return blob.download_as_bytes()
+
+            return await asyncio.to_thread(_download)
         except StorageError:
             raise
         except Exception as e:
@@ -75,15 +85,17 @@ class GcsStorageService(IStorageService):
             return f"https://storage.googleapis.com/{self.bucket_name}/{blob_name}?mock-signature=true&expires={expiration_seconds}&method={method}"
 
         try:
-            bucket = self.client.bucket(self.bucket_name) # type: ignore
-            blob = bucket.blob(blob_name)
-            
-            url = blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(seconds=expiration_seconds),
-                method=method,
-            )
-            return url
+            def _generate():
+                bucket = self.client.bucket(self.bucket_name)  # type: ignore
+                blob = bucket.blob(blob_name)
+                url = blob.generate_signed_url(
+                    version="v4",
+                    expiration=timedelta(seconds=expiration_seconds),
+                    method=method,
+                )
+                return url
+
+            return await asyncio.to_thread(_generate)
         except Exception as e:
             raise StorageError(f"Failed to generate signed URL: {str(e)}")
 
@@ -94,11 +106,14 @@ class GcsStorageService(IStorageService):
             return
 
         try:
-            bucket = self.client.bucket(self.bucket_name) # type: ignore
-            blob = bucket.blob(blob_name)
-            if not blob.exists():
-                raise StorageError(f"File {blob_name} not found in storage.")
-            blob.delete()
+            def _delete():
+                bucket = self.client.bucket(self.bucket_name)  # type: ignore
+                blob = bucket.blob(blob_name)
+                if not blob.exists():
+                    raise StorageError(f"File {blob_name} not found in storage.")
+                blob.delete()
+
+            await asyncio.to_thread(_delete)
         except StorageError:
             raise
         except Exception as e:
@@ -111,8 +126,11 @@ class GcsStorageService(IStorageService):
             return list(self.mock_storage.keys())
 
         try:
-            blobs = self.client.list_blobs(self.bucket_name, prefix=prefix) # type: ignore
-            return [blob.name for blob in blobs]
+            def _list():
+                blobs = self.client.list_blobs(self.bucket_name, prefix=prefix)  # type: ignore
+                return [blob.name for blob in blobs]
+
+            return await asyncio.to_thread(_list)
         except Exception as e:
             raise StorageError(f"Failed to list files from bucket {self.bucket_name}: {str(e)}")
 

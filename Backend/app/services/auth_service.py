@@ -10,6 +10,9 @@ from app.utils.logger import get_logger
 logger = get_logger("app.services.auth")
 
 
+from app.utils.firebase import initialize_firebase
+
+
 class FirebaseAuthService(IAuthService):
     """
     Firebase Authentication concrete implementation.
@@ -18,33 +21,14 @@ class FirebaseAuthService(IAuthService):
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.use_mock = (
-            settings.ENVIRONMENT.lower() in ("development", "testing")
-            and not settings.FIREBASE_CREDENTIALS_PATH
-            and not settings.FIREBASE_CREDENTIALS_JSON
-        )
+        # Initialize Firebase Admin SDK using centralized helper
+        initialized = initialize_firebase(settings)
+        self.use_mock = not initialized
 
-        if not self.use_mock:
-            if not firebase_admin._apps:
-                try:
-                    if settings.FIREBASE_CREDENTIALS_JSON:
-                        import json
-                        cred_dict = json.loads(settings.FIREBASE_CREDENTIALS_JSON)
-                        cred = credentials.Certificate(cred_dict)
-                        firebase_admin.initialize_app(cred)
-                        logger.info("Firebase Admin SDK successfully initialized via credentials JSON.")
-                    elif settings.FIREBASE_CREDENTIALS_PATH:
-                        cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-                        firebase_admin.initialize_app(cred)
-                        logger.info("Firebase Admin SDK successfully initialized via credentials file path.")
-                    else:
-                        firebase_admin.initialize_app()
-                        logger.info("Firebase Admin SDK successfully initialized using default credentials.")
-                except Exception as e:
-                    logger.error(f"Failed to initialize Firebase Admin SDK: {e}. Switching to mock mode.")
-                    self.use_mock = True
-        else:
+        if self.use_mock:
             logger.info("Firebase Auth service started in MOCK mode.")
+        else:
+            logger.info("Firebase Auth service started in PRODUCTION mode.")
 
     async def verify_token(self, token: str) -> Dict[str, Any]:
         if self.use_mock:
