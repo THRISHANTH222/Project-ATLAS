@@ -8,7 +8,7 @@ from app.middleware.auth_middleware import FirebaseAuthMiddleware
 from app.middleware.correlation_id import CorrelationIdMiddleware
 from app.middleware.error_handler import register_error_handlers
 from app.middleware.logging_middleware import LoggingMiddleware
-from app.routers import ai, auth, company, health, storage, uploads
+from app.routers import ai, auth, company, health, storage, uploads, documents
 from app.utils.logger import get_logger, setup_logging
 
 from app.utils.firebase import initialize_firebase
@@ -29,6 +29,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     # Initialize Firebase Admin SDK eagerly at startup to resolve initialization order dependencies
     initialize_firebase(settings)
+    
+    # Eagerly validate Supabase Storage connectivity on startup
+    try:
+        from app.services import get_storage_service
+        storage_service = get_storage_service(settings)
+        await storage_service.validate_connectivity()
+    except Exception as e:
+        logger.error(f"Failed to validate Supabase Storage connectivity on startup: {e}")
+        if settings.ENVIRONMENT.lower() not in ("development", "testing") or settings.SUPABASE_SERVICE_ROLE_KEY:
+            raise RuntimeError(f"Startup validation failed: Supabase Storage is not accessible: {e}")
     yield
     # Clear client sessions, close database connections
     logger.info(f"Shutting down {settings.APP_NAME}...")
@@ -86,6 +96,7 @@ def create_app() -> FastAPI:
     app.include_router(storage.router)
     app.include_router(ai.router)
     app.include_router(uploads.router)
+    app.include_router(documents.router)
 
     return app
 

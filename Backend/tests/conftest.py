@@ -12,7 +12,12 @@ test_settings_obj = Settings(
     ENVIRONMENT="testing",
     FIREBASE_PROJECT_ID="test-project",
     FIREBASE_CREDENTIALS_PATH="",
+    STORAGE_PROVIDER="local",
+    LOCAL_STORAGE_PATH="uploads/",
     GCS_BUCKET_NAME="test-bucket",
+    SUPABASE_URL="https://test-project.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY="mock-service-role-key",
+    SUPABASE_BUCKET="test-bucket",
     GEMINI_API_KEY="mock-gemini-api-key",
     GEMINI_MODEL_NAME="gemini-1.5-flash",
 )

@@ -4,7 +4,7 @@ from app.config.settings import Settings, get_settings
 from app.services.auth_service import FirebaseAuthService
 from app.services.base import IAIService, IAuthService, IDatabaseService, IStorageService
 from app.services.db_service import FirestoreDbService
-from app.services.storage_service import GcsStorageService
+from app.services.storage import StorageService
 from app.services.ai_service import GeminiAIService
 
 # Global instances for singleton patterns
@@ -34,7 +34,7 @@ def get_storage_service(settings: Settings = Depends(get_settings)) -> IStorageS
     """FastAPI dependency provider for IStorageService."""
     global _storage_service
     if _storage_service is None:
-        _storage_service = GcsStorageService(settings)
+        _storage_service = StorageService(settings)
     return _storage_service
 
 

@@ -17,8 +17,8 @@ async def get_presigned_url(
     storage: IStorageService = Depends(get_storage_service),
 ) -> ApiResponse[str]:
     """
-    Generates a secure presigned GCS URL.
-    Enables frontend clients to download files directly from GCS or upload files
+    Generates a secure presigned storage URL.
+    Enables frontend clients to download files directly from storage or upload files
     safely without routing heavy multipart file streams through the app servers.
     """
     url = await storage.generate_presigned_url(
@@ -36,7 +36,7 @@ async def upload_direct_file(
     storage: IStorageService = Depends(get_storage_service),
 ) -> ApiResponse[str]:
     """
-    Uploads a file directly to Cloud Storage via the API server.
+    Uploads a file directly to storage via the API server.
     Best for small assets, profile pictures, or server-generated logs.
     """
     file_bytes = await file.read()

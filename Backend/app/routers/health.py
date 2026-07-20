@@ -1,13 +1,14 @@
 import time
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends
-
+from fastapi import APIRouter, Depends, HTTPException, status
 from app.config.settings import Settings, get_settings
-from app.models.response.base import HealthCheckResponse, ServiceStatus
+from app.models.response.base import HealthCheckResponse, ServiceStatus, StorageHealthCheckResponse
 from app.services import get_ai_service, get_db_service, get_storage_service
 from app.services.base import IAIService, IDatabaseService, IStorageService
+from app.utils.logger import get_logger
 
 router = APIRouter(prefix="/health", tags=["System Health"])
+logger = get_logger("app.routers.health")
 
 
 @router.get("", response_model=HealthCheckResponse)
@@ -35,7 +36,7 @@ async def check_health(
         overall_healthy = False
         services["database"] = ServiceStatus(status="degraded", details=str(e))
 
-    # 2. Check Storage (Google Cloud Storage)
+    # 2. Check Storage (Active Strategy Provider)
     storage_start = time.perf_counter()
     try:
         # Check by generating signed URL (lightweight local client check)
@@ -62,3 +63,31 @@ async def check_health(
         timestamp=datetime.now(timezone.utc).isoformat(),
         services=services,
     )
+
+
+@router.get("/storage", response_model=StorageHealthCheckResponse)
+async def check_storage_health(
+    storage: IStorageService = Depends(get_storage_service),
+) -> StorageHealthCheckResponse:
+    """
+    Perform deep validation of the storage provider's connection and bucket status.
+    """
+    logger.info("Storage health check requested.")
+    provider_type = storage.active_provider
+    provider_name = "Supabase Storage" if provider_type == "supabase" else "Local Storage"
+    bucket_name = storage.settings.SUPABASE_BUCKET if provider_type == "supabase" else storage.settings.LOCAL_STORAGE_PATH
+
+    try:
+        await storage.validate_connectivity()
+        logger.info("Storage health check succeeded.")
+        return StorageHealthCheckResponse(
+            provider=provider_name,
+            status="healthy",
+            bucket=bucket_name
+        )
+    except Exception as e:
+        logger.error(f"Storage health check failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Storage health check failed: {str(e)}"
+        )

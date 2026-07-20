@@ -8,6 +8,7 @@ class ApiResponse(BaseModel, Generic[T]):
     """Standardized Top-Level API Envelope Model."""
 
     status: str = Field(default="success", description="Status string (e.g. success, error)")
+    success: bool = Field(default=True, description="Success status boolean")
     message: Optional[str] = Field(None, description="Detailed action summary message")
     data: Optional[T] = Field(None, description="Generic response payload envelope")
 
@@ -28,3 +29,11 @@ class HealthCheckResponse(BaseModel):
     environment: str = Field(..., description="Target execution runtime environment")
     timestamp: str = Field(..., description="Server current ISO-datetime")
     services: Dict[str, ServiceStatus] = Field(..., description="Dictionary containing dependency check statuses")
+
+
+class StorageHealthCheckResponse(BaseModel):
+    """Specific health check status of the active storage strategy provider."""
+
+    provider: str = Field(..., description="The name of the storage strategy provider")
+    status: str = Field(..., description="Health status of the storage provider")
+    bucket: str = Field(..., description="Configured bucket or base directory name")

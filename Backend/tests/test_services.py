@@ -15,7 +15,12 @@ def local_settings() -> Settings:
         ENVIRONMENT="development",
         FIREBASE_PROJECT_ID="mock-project",
         FIREBASE_CREDENTIALS_PATH="", # Forces mock mode
+        STORAGE_PROVIDER="local",
+        LOCAL_STORAGE_PATH="uploads/",
         GCS_BUCKET_NAME="mock-bucket",
+        SUPABASE_URL="https://mock-bucket.supabase.co",
+        SUPABASE_SERVICE_ROLE_KEY="mock-key",
+        SUPABASE_BUCKET="mock-bucket",
         GEMINI_API_KEY="", # Forces mock mode
     )
 

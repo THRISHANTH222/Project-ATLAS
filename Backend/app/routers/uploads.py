@@ -19,7 +19,7 @@ logger = get_logger("app.routers.uploads")
     status_code=status.HTTP_201_CREATED,
     summary="Upload a document",
     description=(
-        "Uploads a document (PDF, DOCX, TXT, or XLSX) to GCS and records metadata in Firestore. "
+        "Uploads a document (PDF, DOCX, TXT, or XLSX) to the active storage provider and records metadata in Firestore. "
         "Performs file type validation, size checking (max 10MB), and duplicate detection via hashes."
     )
 )
@@ -64,6 +64,7 @@ async def upload_document(
 
     return ApiResponse(
         status="success",
-        message="Document uploaded and registered successfully.",
+        success=True,
+        message="Document uploaded successfully.",
         data=response_data
     )

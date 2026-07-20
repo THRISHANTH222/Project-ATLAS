@@ -18,8 +18,16 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = ""
     FIREBASE_CREDENTIALS_JSON: str = ""
 
-    # Cloud Storage Settings
-    GCS_BUCKET_NAME: str = "project-atlas-bucket"
+    # Storage Settings
+    STORAGE_PROVIDER: str = "local"
+    LOCAL_STORAGE_PATH: str = "uploads/"
+
+    # Supabase Storage Settings
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_BUCKET: str = "project-atlas-bucket"
+    SIGNED_URL_EXPIRATION: int = 600
 
     # Gemini Settings
     GEMINI_API_KEY: str = ""

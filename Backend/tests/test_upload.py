@@ -18,7 +18,7 @@ def test_upload_success_pdf(client: TestClient) -> None:
 
     resp_data = response.json()
     assert resp_data["status"] == "success"
-    assert resp_data["message"] == "Document uploaded and registered successfully."
+    assert resp_data["message"] == "Document uploaded successfully."
     
     meta = resp_data["data"]
     assert meta["filename"] == "document.pdf"
@@ -124,3 +124,52 @@ def test_upload_missing_company_id(client: TestClient) -> None:
     response = client.post("/uploads", headers=headers, files=files)
     assert response.status_code == 400
     assert "does not contain a valid tenant/company association" in response.json()["detail"]
+
+
+def test_upload_phase_6_contract(client: TestClient) -> None:
+    """Verifies that upload response fully complies with the Phase 6 response structure."""
+    headers = {"Authorization": "Bearer mock-token-user789__comp-phase6"}
+    files = {
+        "file": ("HR.pdf", b"PDF file contents for Phase 6", "application/pdf")
+    }
+    
+    response = client.post("/uploads", headers=headers, files=files)
+    assert response.status_code == 201
+    
+    resp = response.json()
+    assert resp["success"] is True
+    assert resp["message"] == "Document uploaded successfully."
+    
+    data = resp["data"]
+    assert "documentId" in data
+    assert data["companyId"] == "comp-phase6"
+    assert data["filename"] == "HR.pdf"
+    assert data["status"] == "Uploaded"
+    
+    # Verify path convention: companyId/documents/{documentId}_{originalFilename}
+    expected_storage_prefix = f"comp-phase6/documents/{data['documentId']}_HR.pdf"
+    assert data["storagePath"] == expected_storage_prefix
+
+
+def test_upload_firestore_failure_cleanup(client: TestClient, monkeypatch) -> None:
+    """Verifies that if Firestore metadata registration fails, the uploaded storage file is cleaned up."""
+    headers = {"Authorization": "Bearer mock-token-user123__comp-cleanup"}
+    files = {
+        "file": ("cleanup-test.pdf", b"Clean me up on db fail", "application/pdf")
+    }
+
+    # Mock Firestore create_document to raise an exception when writing to "documents"
+    from app.services.db_service import FirestoreDbService
+    original_create = FirestoreDbService.create_document
+    
+    async def mock_create_document(self, collection, data, doc_id=None):
+        if collection == "documents":
+            raise RuntimeError("Simulated Database Error")
+        return await original_create(self, collection, data, doc_id)
+        
+    monkeypatch.setattr(FirestoreDbService, "create_document", mock_create_document)
+    
+    response = client.post("/uploads", headers=headers, files=files)
+    assert response.status_code == 500
+    assert "Simulated Database Error" in response.json()["detail"]
+
