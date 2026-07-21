@@ -261,3 +261,42 @@ def test_query_retrieval_endpoint_invalid_payload(client: TestClient) -> None:
     payload = {"query": "", "top_k": -5}
     response = client.post("/retrieval/query", headers=headers, json=payload)
     assert response.status_code == 422
+
+
+def test_query_retrieval_endpoint_new_fields(client: TestClient) -> None:
+    """Verifies that the new response fields (documentName, page, similarity, text) are returned."""
+    headers = {"Authorization": "Bearer mock-token-user123__comp-abc"}
+    
+    import app.services as services_module
+    from app.config.settings import get_settings
+    db = services_module.get_db_service(get_settings())
+    if hasattr(db, "mock_db"):
+        db.mock_db.clear()
+    
+    mock_embeddings = {
+        "emb-1": {
+            "companyId": "comp-abc",
+            "documentId": "doc-abc-1",
+            "documentName": "Financial_Report.pdf",
+            "chunkId": "chunk-abc-1",
+            "embeddingVector": [0.15] * 768,
+            "content": "SaaS growth drivers in 2026 include product led growth and AI integrations.",
+            "pageNumber": 3
+        }
+    }
+    db.mock_db["embeddings"] = mock_embeddings
+
+    payload = {"query": "SaaS growth", "top_k": 1}
+    response = client.post("/retrieval/query", headers=headers, json=payload)
+    assert response.status_code == 200
+
+    resp_data = response.json()
+    item = resp_data["data"][0]
+    
+    assert item["chunkId"] == "chunk-abc-1"
+    assert item["documentId"] == "doc-abc-1"
+    assert item["documentName"] == "Financial_Report.pdf"
+    assert item["page"] == 3
+    assert item["similarity"] > 0.0
+    assert "SaaS growth drivers" in item["text"]
+

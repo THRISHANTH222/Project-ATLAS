@@ -58,9 +58,14 @@ async def query_relevant_chunks(
         RetrievalChunkResponse(
             chunkId=item["chunkId"],
             documentId=item["documentId"],
-            pageNumber=item["pageNumber"],
-            similarityScore=item["similarityScore"],
-            chunkText=item["chunkText"]
+            documentName=item.get("documentName"),
+            page=item.get("page"),
+            similarity=item["similarity"],
+            text=item["text"],
+            # Legacy mapping support
+            pageNumber=item.get("pageNumber"),
+            similarityScore=item.get("similarityScore"),
+            chunkText=item.get("chunkText")
         )
         for item in results
     ]

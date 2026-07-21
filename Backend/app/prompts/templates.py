@@ -115,3 +115,78 @@ class PromptBuilder:
         )
         return prompt
 
+    @staticmethod
+    def build_structured_prompt(
+        chunks: List[Dict[str, Any]],
+        question: str,
+        company_knowledge: Union[str, Dict[str, Any], Any] = None,
+        system_instructions: Optional[str] = None
+    ) -> Dict[str, str]:
+        """
+        Builds a structured prompt containing system_prompt, context, and question components.
+        Enforces strict hallucination prevention rules and source chunk ID citations.
+        """
+        DEFAULT_SYSTEM_INSTRUCTIONS = (
+            "You are a helpful AI assistant. Answer the user's question based strictly on the provided Context.\n"
+            "Rules:\n"
+            "- Never hallucinate or assume facts that are not directly supported by the context.\n"
+            "- Never answer outside the provided context. If the answer cannot be determined or inferred from context, explicitly state: "
+            "'I do not have enough information to answer this question based on the retrieved documents.'\n"
+            "- Cite and return the source chunk IDs (e.g., [chunk-xyz-1]) next to the sentences in your response where that information was used."
+        )
+        sys_instructs = (system_instructions or DEFAULT_SYSTEM_INSTRUCTIONS).strip()
+
+        # Company Knowledge Formatting
+        if not company_knowledge:
+            comp_know_str = ""
+        elif isinstance(company_knowledge, str):
+            comp_know_str = company_knowledge.strip()
+        elif isinstance(company_knowledge, dict):
+            parts = []
+            for k, v in company_knowledge.items():
+                if v is not None:
+                    clean_key = re.sub(r'([A-Z])', r' \1', k).replace('_', ' ').strip().title()
+                    parts.append(f"{clean_key}: {v}")
+            comp_know_str = "\n".join(parts) if parts else ""
+        elif hasattr(company_knowledge, "model_dump"):
+            data = company_knowledge.model_dump(exclude_none=True)
+            parts = []
+            for k, v in data.items():
+                clean_key = re.sub(r'([A-Z])', r' \1', k).replace('_', ' ').strip().title()
+                parts.append(f"{clean_key}: {v}")
+            comp_know_str = "\n".join(parts) if parts else ""
+        else:
+            comp_know_str = str(company_knowledge).strip()
+
+        # Retrieved Chunks Formatting
+        if not chunks:
+            chunks_str = "No relevant document chunks found."
+        else:
+            formatted_chunks = []
+            for idx, chunk in enumerate(chunks):
+                chunk_id = chunk.get("chunkId") or chunk.get("chunk_id") or f"chunk-{idx}"
+                doc_id = chunk.get("documentId") or chunk.get("document_id") or "unknown"
+                doc_name = chunk.get("documentName") or chunk.get("document_name") or chunk.get("filename") or "unknown-doc"
+                page = chunk.get("page") or chunk.get("pageNumber") or chunk.get("page_number")
+                text = chunk.get("text") or chunk.get("chunkText") or chunk.get("content") or ""
+                
+                page_str = f" (Page {page})" if page else ""
+                formatted_chunks.append(
+                    f"--- Chunk ID: [{chunk_id}] (Doc: {doc_id}, Name: {doc_name}){page_str} ---\n{text.strip()}"
+                )
+            chunks_str = "\n\n".join(formatted_chunks)
+
+        # Context components joining
+        context_parts = []
+        if comp_know_str:
+            context_parts.append(f"COMPANY KNOWLEDGE:\n{comp_know_str}")
+        context_parts.append(f"RETRIEVED CHUNKS:\n{chunks_str}")
+        context_str = "\n\n".join(context_parts)
+
+        return {
+            "system_prompt": sys_instructs,
+            "context": context_str,
+            "question": question.strip()
+        }
+
+

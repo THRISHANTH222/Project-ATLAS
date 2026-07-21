@@ -40,6 +40,7 @@ def client() -> Generator[TestClient, None, None]:
     services_module._db_service = None
     services_module._storage_service = None
     services_module._ai_service = None
+    services_module._retrieval_service = None
     
     with TestClient(app) as test_client:
         yield test_client

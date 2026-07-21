@@ -9,6 +9,8 @@ from app.services.base import IAIService
 from app.utils.exceptions import AIServiceError
 from app.utils.logger import get_logger
 
+import google.api_core.exceptions as g_exceptions
+
 logger = get_logger("app.services.ai")
 
 
@@ -48,6 +50,66 @@ class GeminiAIService(IAIService):
         else:
             logger.info("Gemini AI service started in MOCK mode for development.")
 
+    async def _execute_with_retry(
+        self,
+        func,
+        *args,
+        timeout_seconds: float = 15.0,
+        max_retries: int = 3,
+        **kwargs
+    ):
+        """
+        Executes a Gemini calling task with timeout, rate limit backoff, key validation, and retry logic.
+        """
+        backoff = 1.5
+        for attempt in range(1, max_retries + 1):
+            try:
+                # Enforce execution timeout limit
+                return await asyncio.wait_for(
+                    asyncio.to_thread(func, *args, **kwargs),
+                    timeout=timeout_seconds
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"Gemini API call timed out after {timeout_seconds}s (Attempt {attempt}/{max_retries})."
+                )
+                if attempt == max_retries:
+                    raise AIServiceError(f"Gemini API execution timed out after {max_retries} attempts.")
+                await asyncio.sleep(backoff ** attempt)
+                
+            except g_exceptions.PermissionDenied as pde:
+                logger.error(f"Gemini API Access Denied: Invalid Key or Unauthorized context: {pde}")
+                raise AIServiceError("Gemini API key is invalid or lacks necessary permissions.")
+                
+            except g_exceptions.Unauthenticated as uae:
+                logger.error(f"Gemini API Request Unauthenticated: Invalid Key verification failed: {uae}")
+                raise AIServiceError("Gemini API key is invalid or lacks authentication credentials.")
+                
+            except g_exceptions.ResourceExhausted as ree:
+                logger.warning(
+                    f"Gemini API rate limit reached (Attempt {attempt}/{max_retries}): {ree}. Sleeping for retry..."
+                )
+                if attempt == max_retries:
+                    raise AIServiceError("Gemini API rate limit exhausted after all retry attempts.")
+                await asyncio.sleep((backoff ** attempt) * 2)
+                
+            except (g_exceptions.ServiceUnavailable, g_exceptions.InternalServerError) as transient_err:
+                logger.warning(
+                    f"Gemini API transient failure (Attempt {attempt}/{max_retries}): {transient_err}"
+                )
+                if attempt == max_retries:
+                    raise AIServiceError(f"Gemini API unavailable after {max_retries} attempts: {transient_err}")
+                await asyncio.sleep(backoff ** attempt)
+                
+            except Exception as e:
+                err_msg = str(e)
+                if "API_KEY_INVALID" in err_msg or "API key not valid" in err_msg or "invalid API key" in err_msg.lower():
+                    logger.error(f"Gemini API call returned invalid key code: {err_msg}")
+                    raise AIServiceError("Gemini API key is invalid.")
+                
+                logger.error(f"Gemini API execution encountered unexpected exception: {e}")
+                raise AIServiceError(f"Gemini API failed with exception: {err_msg}")
+
     async def generate_content(
         self,
         prompt: str,
@@ -58,28 +120,25 @@ class GeminiAIService(IAIService):
             logger.debug(f"Mock Gemini generating text for prompt: '{prompt[:40]}...'")
             return f"Mock response for prompt: {prompt}. (System instruction: {system_instruction})"
 
-        try:
-            def _generate():
-                # Recreate model with specific system instruction if provided
-                model = self.model
-                if system_instruction:
-                    model = genai.GenerativeModel(
-                        self.settings.GEMINI_MODEL_NAME,
-                        system_instruction=system_instruction
-                    )
+        def _generate():
+            # Recreate model with specific system instruction if provided
+            model = self.model
+            if system_instruction:
+                model = genai.GenerativeModel(
+                    self.settings.GEMINI_MODEL_NAME,
+                    system_instruction=system_instruction
+                )
 
-                # Support chat history if provided
-                if history:
-                    chat = model.start_chat(history=history)
-                    response = chat.send_message(prompt)
-                else:
-                    response = model.generate_content(prompt)
+            # Support chat history if provided
+            if history:
+                chat = model.start_chat(history=history)
+                response = chat.send_message(prompt)
+            else:
+                response = model.generate_content(prompt)
 
-                return response.text
+            return response.text
 
-            return await asyncio.to_thread(_generate)
-        except Exception as e:
-            raise AIServiceError(f"Gemini content generation failed: {str(e)}")
+        return await self._execute_with_retry(_generate)
 
     async def generate_json(
         self,
@@ -108,43 +167,40 @@ class GeminiAIService(IAIService):
                         mock_res[field_name] = []
             return mock_res
 
-        try:
-            def _generate_json():
-                model = self.model
-                if system_instruction:
-                    model = genai.GenerativeModel(
-                        self.settings.GEMINI_MODEL_NAME,
-                        system_instruction=system_instruction
-                    )
-
-                config = GenerationConfig(
-                    response_mime_type="application/json",
-                    response_schema=response_schema
+        def _generate_json():
+            model = self.model
+            if system_instruction:
+                model = genai.GenerativeModel(
+                    self.settings.GEMINI_MODEL_NAME,
+                    system_instruction=system_instruction
                 )
 
-                response = model.generate_content(prompt, generation_config=config)
-                return json.loads(response.text)
+            config = GenerationConfig(
+                response_mime_type="application/json",
+                response_schema=response_schema
+            )
 
-            return await asyncio.to_thread(_generate_json)
+            response = model.generate_content(prompt, generation_config=config)
+            return json.loads(response.text)
+
+        try:
+            val_str = await self._execute_with_retry(_generate_json)
+            return val_str
         except json.JSONDecodeError as jde:
             raise AIServiceError(f"Gemini returned invalid JSON structure: {str(jde)}")
-        except Exception as e:
-            raise AIServiceError(f"Gemini JSON generation failed: {str(e)}")
 
     async def embed_content(self, text: str) -> List[float]:
         if self.use_mock:
             logger.debug(f"Mock Gemini embedding: '{text[:20]}...'")
             return [0.1] * 768
 
-        try:
-            def _embed():
-                result = genai.embed_content(
-                    model="models/text-embedding-004",
-                    content=text,
-                    task_type="retrieval_document"
-                )
-                return result["embedding"]
+        def _embed():
+            result = genai.embed_content(
+                model="models/text-embedding-004",
+                content=text,
+                task_type="retrieval_document"
+            )
+            return result["embedding"]
 
-            return await asyncio.to_thread(_embed)
-        except Exception as e:
-            raise AIServiceError(f"Gemini embedding generation failed: {str(e)}")
+        return await self._execute_with_retry(_embed)
+

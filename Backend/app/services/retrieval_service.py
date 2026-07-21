@@ -187,16 +187,27 @@ class KnowledgeRetrievalService(IRetrievalService):
                 except (ValueError, TypeError):
                     pass
 
+            doc_name = self._extract_field(
+                doc,
+                ["documentName", "document_name", "metadata.documentName", "metadata.document_name", "filename", "metadata.filename"],
+                "unknown-document"
+            )
+
             scored_chunks.append({
                 "chunkId": chunk_id,
                 "documentId": doc_id,
+                "documentName": doc_name,
+                "page": page_number,
+                "similarity": float(score),
+                "text": chunk_text,
+                # Legacy keys
                 "pageNumber": page_number,
                 "similarityScore": float(score),
                 "chunkText": chunk_text
             })
 
         # 4. Sort and Filter Top K
-        scored_chunks.sort(key=lambda x: x["similarityScore"], reverse=True)
+        scored_chunks.sort(key=lambda x: x["similarity"], reverse=True)
         top_results = scored_chunks[:top_k]
 
         logger.info(f"Similarity computing complete. Returning top {len(top_results)} matches.")
