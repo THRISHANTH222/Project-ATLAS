@@ -1,1 +1,0 @@
-"""FastAPI models package."""
