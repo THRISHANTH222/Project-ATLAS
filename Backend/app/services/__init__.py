@@ -2,7 +2,7 @@ from fastapi import Depends
 
 from app.config.settings import Settings, get_settings
 from app.services.auth_service import FirebaseAuthService
-from app.services.base import IAIService, IAuthService, IDatabaseService, IStorageService
+from app.services.base import IAIService, IAuthService, IDatabaseService, IStorageService, IRetrievalService
 from app.services.db_service import FirestoreDbService
 from app.services.storage import StorageService
 from app.services.ai_service import GeminiAIService
@@ -12,6 +12,7 @@ _auth_service = None
 _db_service = None
 _storage_service = None
 _ai_service = None
+_retrieval_service = None
 
 
 def get_auth_service(settings: Settings = Depends(get_settings)) -> IAuthService:
@@ -44,3 +45,17 @@ def get_ai_service(settings: Settings = Depends(get_settings)) -> IAIService:
     if _ai_service is None:
         _ai_service = GeminiAIService(settings)
     return _ai_service
+
+
+def get_retrieval_service(
+    settings: Settings = Depends(get_settings),
+    db: IDatabaseService = Depends(get_db_service),
+    ai: IAIService = Depends(get_ai_service),
+) -> IRetrievalService:
+    """FastAPI dependency provider for IRetrievalService."""
+    global _retrieval_service
+    if _retrieval_service is None:
+        from app.services.retrieval_service import KnowledgeRetrievalService
+        _retrieval_service = KnowledgeRetrievalService(db, ai)
+    return _retrieval_service
+

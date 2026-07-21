@@ -26,3 +26,12 @@ class StructuredAnalysisRequest(BaseModel):
     raw_text: str = Field(..., description="The raw unformatted text to analyze")
     analysis_type: str = Field(default="generic", description="Purpose of parsing (e.g. invoice, resume, logs)")
     schema_definition: Dict[str, Any] = Field(..., description="JSON-Schema specifying the output dictionary requirements")
+
+
+class RetrievalQARequest(BaseModel):
+    """Parameters for retrieval-augmented question answering."""
+
+    query: str = Field(..., min_length=1, description="The user's question")
+    top_k: int = Field(default=5, ge=1, le=50, description="The number of matching chunks to retrieve")
+    system_instruction: Optional[str] = Field(None, description="Optional override system instructions")
+

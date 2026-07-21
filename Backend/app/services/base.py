@@ -125,3 +125,18 @@ class IAIService(ABC):
     async def embed_content(self, text: str) -> List[float]:
         """Generates text vector embeddings."""
         pass
+
+
+class IRetrievalService(ABC):
+    """Interface for Knowledge Retrieval Engine."""
+
+    @abstractmethod
+    async def retrieve_relevant_chunks(
+        self,
+        company_id: str,
+        query: str,
+        top_k: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """Retrieves the top K most relevant document chunks using vector similarity."""
+        pass
+

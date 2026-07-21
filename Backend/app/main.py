@@ -8,7 +8,7 @@ from app.middleware.auth_middleware import FirebaseAuthMiddleware
 from app.middleware.correlation_id import CorrelationIdMiddleware
 from app.middleware.error_handler import register_error_handlers
 from app.middleware.logging_middleware import LoggingMiddleware
-from app.routers import ai, auth, company, health, storage, uploads, documents
+from app.routers import ai, auth, company, health, storage, uploads, documents, retrieval
 from app.utils.logger import get_logger, setup_logging
 
 from app.utils.firebase import initialize_firebase
@@ -97,6 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(ai.router)
     app.include_router(uploads.router)
     app.include_router(documents.router)
+    app.include_router(retrieval.router)
 
     return app
 
