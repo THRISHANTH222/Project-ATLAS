@@ -1,0 +1,23 @@
+import Navbar from "@/components/landing/Navbar";
+import Hero from "@/components/landing/Hero";
+import Features from "@/components/landing/Features";
+import HowItWorks from "@/components/landing/HowItWorks";
+import Pricing from "@/components/landing/Pricing";
+import FAQ from "@/components/landing/FAQ";
+import Footer from "@/components/landing/Footer";
+
+export default function Home() {
+  return (
+    <div className="flex flex-col min-h-screen bg-[#FAF9F6] font-sans antialiased text-black select-none">
+      <Navbar />
+      <main className="flex-1">
+        <Hero />
+        <Features />
+        <HowItWorks />
+        <Pricing />
+        <FAQ />
+      </main>
+      <Footer />
+    </div>
+  );
+}
