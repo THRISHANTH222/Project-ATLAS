@@ -300,3 +300,130 @@ def test_query_retrieval_endpoint_new_fields(client: TestClient) -> None:
     assert item["similarity"] > 0.0
     assert "SaaS growth drivers" in item["text"]
 
+
+@pytest.mark.asyncio
+async def test_metadata_filtering_retrieval() -> None:
+    # Set up mock DB with matching and non-matching metadata
+    db_data = [
+        {
+            "companyId": "company-A",
+            "documentId": "doc-1",
+            "chunkId": "chunk-1",
+            "embeddingVector": [1.0, 0.0, 0.0],
+            "content": "This is company A text of SOP document type in Operations department.",
+            "pageNumber": 1,
+            "metadata": {
+                "chunkMetadata": {
+                    "documentType": "SOP",
+                    "department": "Operations",
+                    "keywords": ["sop", "procedures"],
+                    "tags": ["sop", "operations"]
+                }
+            }
+        },
+        {
+            "companyId": "company-A",
+            "documentId": "doc-2",
+            "chunkId": "chunk-2",
+            "embeddingVector": [1.0, 0.0, 0.0],
+            "content": "This is company A text of policy document type in HR department.",
+            "pageNumber": 1,
+            "metadata": {
+                "chunkMetadata": {
+                    "documentType": "HR Policy",
+                    "department": "Human Resources",
+                    "keywords": ["hr", "policy"],
+                    "tags": ["hr", "policy"]
+                }
+            }
+        }
+    ]
+
+    db = MockDbService(db_data)
+    ai = MockAiService([1.0, 0.0, 0.0])
+    service = KnowledgeRetrievalService(db, ai)
+
+    # Force filter by SOP
+    results = await service.retrieve_relevant_chunks(
+        company_id="company-A",
+        query="query text",
+        top_k=5,
+        document_type="SOP"
+    )
+    assert len(results) == 1
+    assert results[0]["chunkId"] == "chunk-1"
+
+    # Force filter by HR Policy type and HR department
+    results_hr = await service.retrieve_relevant_chunks(
+        company_id="company-A",
+        query="query text",
+        top_k=5,
+        document_type="HR Policy",
+        department="Human Resources"
+    )
+    assert len(results_hr) == 1
+    assert results_hr[0]["chunkId"] == "chunk-2"
+
+    # Query with mismatching department returns empty
+    results_empty = await service.retrieve_relevant_chunks(
+        company_id="company-A",
+        query="query text",
+        top_k=5,
+        document_type="SOP",
+        department="Finance"
+    )
+    assert len(results_empty) == 0
+
+
+@pytest.mark.asyncio
+async def test_semantic_reranking_accuracy() -> None:
+    # Set up mock DB with two candidates
+    db_data = [
+        {
+            "companyId": "company-A",
+            "documentId": "doc-1",
+            "chunkId": "chunk-1",
+            "embeddingVector": [0.95, 0.05, 0.0],
+            "content": "This is a generic text about corporate rules.",
+            "pageNumber": 1,
+            "metadata": {
+                "chunkMetadata": {
+                    "keywords": ["corporate", "rules"],
+                    "tags": ["corporate"],
+                    "heading": "General Section"
+                }
+            }
+        },
+        {
+            "companyId": "company-A",
+            "documentId": "doc-2",
+            "chunkId": "chunk-2",
+            "embeddingVector": [0.8, 0.2, 0.0],
+            "content": "Detailed guidelines regarding annual employee leaves policy and vacations.",
+            "pageNumber": 1,
+            "metadata": {
+                "chunkMetadata": {
+                    "keywords": ["employee", "leaves", "policy", "vacations"],
+                    "tags": ["leaves", "policy"],
+                    "heading": "Employee Leaves Policy"
+                }
+            }
+        }
+    ]
+
+    db = MockDbService(db_data)
+    ai = MockAiService([1.0, 0.0, 0.0])
+    service = KnowledgeRetrievalService(db, ai)
+
+    # Query matching specifically Leaves Policy
+    results = await service.retrieve_relevant_chunks(
+        company_id="company-A",
+        query="employee leaves policy and annual vacations",
+        top_k=5
+    )
+    
+    assert len(results) == 2
+    # Detailed leaves policy should be reranked to rank 1 (chunk-2)
+    assert results[0]["chunkId"] == "chunk-2"
+
+

@@ -16,6 +16,13 @@ export interface ChunkMetadata {
     overlapEnd?: number;
     parserSource?: string;
     createdAt: string;
+    pageNumber?: number;
+    heading?: string;
+    section?: string;
+    documentType?: string;
+    department?: string;
+    keywords?: string[];
+    tags?: string[];
 }
 /**
  * Standard envelope representation of an extracted text chunk.

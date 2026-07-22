@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -15,3 +16,12 @@ class RetrievalRequest(BaseModel):
         le=50, 
         description="The maximum number of top matching chunks to retrieve"
     )
+    documentType: Optional[str] = Field(
+        default=None,
+        description="Filter by specific document type"
+    )
+    department: Optional[str] = Field(
+        default=None,
+        description="Filter by specific origin department"
+    )
+

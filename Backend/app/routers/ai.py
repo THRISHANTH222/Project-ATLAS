@@ -297,3 +297,92 @@ async def retrieval_qa_prompt(
         message="Retrieval-augmented QA completed.",
         data=answer
     )
+
+
+@router.get("/chat/debug", response_model=ApiResponse[dict])
+async def chat_debug_endpoint(
+    query: str,
+    current_user: dict = Depends(get_current_user),
+    retrieval: IRetrievalService = Depends(get_retrieval_service),
+    db: IDatabaseService = Depends(get_db_service),
+) -> ApiResponse[dict]:
+    """
+    Developer-only retrieval debug mode.
+    Runs similarity analysis, reranking parameters, prompt assembly calculations, 
+    and returns granular inspection metrics.
+    """
+    import time
+
+    # Security Check: Developer only
+    roles = current_user.get("roles") or current_user.get("firebase", {}).get("roles") or []
+    is_dev = any(r in ["developer", "admin", "dev"] for r in roles)
+    uid = str(current_user.get("uid", "")).lower()
+    email = str(current_user.get("email", "")).lower()
+    if not is_dev and not any(wd in uid or wd in email for wd in ["dev", "admin", "developer"]):
+       raise AuthorizationError("Access Denied: Developer only endpoint.")
+
+    company_id = current_user.get("tenant_id") or current_user.get("company_id")
+    if not company_id:
+        raise ValidationError("Authentication context does not contain a valid tenant/company association.")
+
+    # Start Timer
+    start_time = time.perf_counter()
+
+    # 1. Retrieve top matching document chunks (limit to 5)
+    chunks = await retrieval.retrieve_relevant_chunks(
+        company_id=company_id,
+        query=query,
+        top_k=5
+    )
+
+    # 2. Retrieve company details
+    from app.config.settings import get_settings
+    db_service = get_db_service(get_settings())
+    company_data = await db_service.get_document("companies", company_id)
+
+    # 3. Formulate Prompt Builder context (to measure prompt length)
+    prompt = PromptBuilder.build_retrieval_prompt(
+        chunks=chunks,
+        question=query,
+        company_knowledge=company_data
+    )
+
+    # Calculate metrics
+    prompt_length = len(prompt)
+    confidence_score = calculate_rag_confidence(chunks)
+    
+    # Calculate Average Embedding/Similarity Score
+    similarities = [float(c.get("similarity", 0.0)) for c in chunks]
+    avg_embedding_score = sum(similarities) / len(similarities) if similarities else 0.0
+
+    # Format Retrieved Chunks details
+    retrieved_chunks = [
+        {
+            "similarity": float(c.get("similarity", 0.0)),
+            "page": int(c.get("page", 1)) if c.get("page") is not None else 1,
+            "heading": c.get("heading") or "",
+            "chunkId": c.get("chunkId") or "unknown"
+        }
+        for c in chunks
+    ]
+
+    # Stop Timer
+    end_time = time.perf_counter()
+    response_time_ms = round((end_time - start_time) * 1000.0, 2)
+
+    debug_data = {
+        "query": query,
+        "embeddingScore": avg_embedding_score,
+        "retrievedChunks": retrieved_chunks,
+        "responseTime": response_time_ms,
+        "confidence": confidence_score,
+        "promptLength": prompt_length
+    }
+
+    return ApiResponse(
+        status="success",
+        success=True,
+        message="Retrieval debug analysis retrieved successfully.",
+        data=debug_data
+    )
+

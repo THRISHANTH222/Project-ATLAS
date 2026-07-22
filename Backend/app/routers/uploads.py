@@ -1,10 +1,11 @@
-from typing import Optional
+from typing import Optional, Any
 from fastapi import APIRouter, Depends, UploadFile, File, Form, status
+from fastapi.responses import JSONResponse
 
 from app.middleware.auth_middleware import get_current_user
 from app.models.response.base import ApiResponse
 from app.models.response.uploads import UploadMetadataResponse
-from app.services import get_db_service, get_storage_service
+from app.services import get_db_service, get_storage_service, get_document_validator
 from app.services.base import IDatabaseService, IStorageService
 from app.services.upload_service import UploadService
 from app.utils.exceptions import ValidationError
@@ -20,18 +21,37 @@ logger = get_logger("app.routers.uploads")
     summary="Upload a document",
     description=(
         "Uploads a document (PDF, DOCX, TXT, or XLSX) to the active storage provider and records metadata in Firestore. "
-        "Performs file type validation, size checking (max 10MB), and duplicate detection via hashes."
-    )
+        "Performs file type validation, size checking (max 10MB), and runs a Document Validation Agent that extracts "
+        "the first 3 pages / 5000 characters and uses Gemini to classify the taxonomy.\n\n"
+        "**Accepted categories:** SOP, HR Policy, Employee Handbook, Company Policy, Product Manual, Technical Documentation, "
+        "Finance Policy, Compliance, Legal, Operations, Sales, Internal Knowledge Base.\n"
+        "**Rejected categories:** Study Notes, Academic PDFs, Assignments, Textbooks, Fiction, Personal Documents.\n\n"
+        "Documents with **confidence below 0.85** or matching a rejected class are immediately blocked (HTTP 400)."
+    ),
+    responses={
+        400: {
+            "description": "Unsupported document or validation check fail",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "error": "Unsupported document",
+                        "reason": "This appears to be academic study material. Atlas only accepts company knowledge documents."
+                    }
+                }
+            }
+        }
+    }
 )
 async def upload_document(
     file: UploadFile = File(..., description="Multipart file stream to upload"),
     folder: Optional[str] = Form("uploads", description="Subfolder structure under the company root directory"),
     current_user: dict = Depends(get_current_user),
     db: IDatabaseService = Depends(get_db_service),
-    storage: IStorageService = Depends(get_storage_service)
-) -> ApiResponse[UploadMetadataResponse]:
+    storage: IStorageService = Depends(get_storage_service),
+    validator: Any = Depends(get_document_validator)
+) -> Any:
     """
-    HTTP Handler for uploading files. Extracts authentication context and delegates processing to UploadService.
+    HTTP Handler for uploading files. Extracts authentication context, validates document taxonomy, and uploads content.
     """
     # Infer companyId from current authenticated user context
     company_id = current_user.get("tenant_id") or current_user.get("company_id")
@@ -45,6 +65,31 @@ async def upload_document(
 
     # Read uploaded file content
     file_bytes = await file.read()
+
+    # Pre-validate file taxonomy (only allow organizational knowledge documents)
+    validation = await validator.validate_document(
+        file_content=file_bytes,
+        filename=file.filename or "unnamed_file",
+        content_type=file.content_type or "application/octet-stream"
+    )
+
+    if not validation.accepted or validation.confidence < 0.85:
+        logger.warning(
+            f"Upload validation rejected for file '{file.filename}'. "
+            f"Accepted: {validation.accepted}, Confidence: {validation.confidence}. "
+            f"Reason: {validation.reason}"
+        )
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "Unsupported document",
+                "reason": (
+                    validation.reason 
+                    if not validation.accepted 
+                    else "This appears to be academic study material. Atlas only accepts company knowledge documents."
+                )
+            }
+        )
 
     # Instantiate logic service
     upload_service = UploadService(db=db, storage=storage)

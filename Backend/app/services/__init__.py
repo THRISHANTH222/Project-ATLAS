@@ -59,3 +59,12 @@ def get_retrieval_service(
         _retrieval_service = KnowledgeRetrievalService(db, ai)
     return _retrieval_service
 
+
+def get_document_validator(
+    ai: IAIService = Depends(get_ai_service),
+) -> object:
+    """FastAPI dependency provider for DocumentValidator."""
+    from app.services.document_validator import DocumentValidator
+    return DocumentValidator(ai)
+
+

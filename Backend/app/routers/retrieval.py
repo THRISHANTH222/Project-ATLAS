@@ -50,7 +50,9 @@ async def query_relevant_chunks(
     results = await retrieval.retrieve_relevant_chunks(
         company_id=company_id,
         query=payload.query,
-        top_k=payload.top_k
+        top_k=payload.top_k,
+        document_type=payload.documentType,
+        department=payload.department
     )
 
     # Map output elements to schema representations

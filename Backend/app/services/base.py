@@ -136,6 +136,8 @@ class IRetrievalService(ABC):
         company_id: str,
         query: str,
         top_k: int = 5,
+        document_type: Optional[str] = None,
+        department: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieves the top K most relevant document chunks using vector similarity."""
         pass

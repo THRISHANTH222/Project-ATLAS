@@ -173,3 +173,20 @@ def test_upload_firestore_failure_cleanup(client: TestClient, monkeypatch) -> No
     assert response.status_code == 500
     assert "Simulated Database Error" in response.json()["detail"]
 
+
+def test_upload_validation_rejected_academic(client: TestClient) -> None:
+    """Verifies that academic study documents are rejected with 400 Bad Request."""
+    headers = {"Authorization": "Bearer mock-token-user123__comp-abc"}
+    
+    files = {
+        "file": ("physics_homework_assignment.pdf", b"This is a physics course syllabus.", "application/pdf")
+    }
+
+    response = client.post("/uploads", headers=headers, files=files)
+    assert response.status_code == 400
+    
+    resp_data = response.json()
+    assert resp_data["error"] == "Unsupported document"
+    assert "academic study material" in resp_data["reason"]
+
+

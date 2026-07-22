@@ -22,6 +22,13 @@ export interface EmbeddingMetadata {
     filename?: string;
     parserSource?: string;
     chunkMetadata: ChunkMetadata;
+    documentType?: string;
+    department?: string;
+    heading?: string;
+    section?: string;
+    pageNumber?: number;
+    keywords?: string[];
+    tags?: string[];
     createdAt: string;
     status: EmbeddingStatus;
     failureReason?: string;

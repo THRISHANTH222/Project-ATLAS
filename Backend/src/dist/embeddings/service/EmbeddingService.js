@@ -110,6 +110,13 @@ class EmbeddingService {
                         filename,
                         parserSource,
                         chunkMetadata: chunk.metadata,
+                        documentType: chunk.metadata.documentType,
+                        department: chunk.metadata.department,
+                        heading: chunk.metadata.heading,
+                        section: chunk.metadata.section,
+                        pageNumber: chunk.metadata.pageNumber,
+                        keywords: chunk.metadata.keywords,
+                        tags: chunk.metadata.tags,
                         createdAt,
                         status: embedding_types_1.EmbeddingStatus.COMPLETED,
                     };
