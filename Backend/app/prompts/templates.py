@@ -48,7 +48,7 @@ class PromptBuilder:
     ) -> str:
         """
         Accepts retrieved document chunks, user question, and optional company knowledge
-        to construct a structured, hallucination-resistant prompt for Gemini.
+        to construct a structured, hallucination-resistant prompt for Groq.
         """
         # 1. System Instructions
         DEFAULT_SYSTEM_INSTRUCTIONS = (

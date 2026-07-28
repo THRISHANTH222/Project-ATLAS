@@ -5,7 +5,7 @@ from app.services.auth_service import FirebaseAuthService
 from app.services.base import IAIService, IAuthService, IDatabaseService, IStorageService, IRetrievalService
 from app.services.db_service import FirestoreDbService
 from app.services.storage import StorageService
-from app.services.ai_service import GeminiAIService
+from app.services.ai_service import GroqAIService
 
 # Global instances for singleton patterns
 _auth_service = None
@@ -43,7 +43,7 @@ def get_ai_service(settings: Settings = Depends(get_settings)) -> IAIService:
     """FastAPI dependency provider for IAIService."""
     global _ai_service
     if _ai_service is None:
-        _ai_service = GeminiAIService(settings)
+        _ai_service = GroqAIService(settings)
     return _ai_service
 
 

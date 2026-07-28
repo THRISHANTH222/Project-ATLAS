@@ -51,7 +51,7 @@ class MockAiService(IAIService):
 
     async def embed_content(self, text: str):
         if text == "cause_error":
-            raise RuntimeError("Gemini error")
+            raise RuntimeError("AI Service error")
         return self.embed_mock_val
 
 

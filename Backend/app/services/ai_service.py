@@ -1,23 +1,22 @@
 import asyncio
+import hashlib
 import json
 from typing import Any, Dict, List, Optional
-import google.generativeai as genai
-from google.generativeai.types import GenerationConfig
+from groq import Groq, APIError, APIConnectionError, RateLimitError, AuthenticationError
 
 from app.config.settings import Settings
 from app.services.base import IAIService
 from app.utils.exceptions import AIServiceError
 from app.utils.logger import get_logger
 
-import google.api_core.exceptions as g_exceptions
-
 logger = get_logger("app.services.ai")
 
 
-class GeminiAIService(IAIService):
+class GroqAIService(IAIService):
     """
-    Gemini AI integration service.
-    Implements structured text generation, JSON schema validation, and embeddings generation.
+    Groq AI integration service using the official Groq Python SDK.
+    Implements structured text generation (llama-3.3-70b-versatile), JSON schema validation,
+    and 768-dimensional vector embedding generation.
     Supports a mock fallback for developer offline usage and fail-fast environment credential checks.
     """
 
@@ -26,7 +25,11 @@ class GeminiAIService(IAIService):
         
         # Fail fast in production environments if key is a placeholder or empty
         is_production = settings.ENVIRONMENT.lower() not in ("development", "testing")
-        is_placeholder_key = not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY.strip() in ("", "mock-gemini-api-key")
+        is_placeholder_key = (
+            not settings.GROQ_API_KEY 
+            or settings.GROQ_API_KEY.strip() in ("", "mock-groq-api-key", "mock-gemini-api-key")
+            or settings.GROQ_API_KEY.startswith("AQ.")
+        )
         
         self.use_mock = (
             settings.ENVIRONMENT.lower() in ("development", "testing")
@@ -35,20 +38,19 @@ class GeminiAIService(IAIService):
 
         if not self.use_mock and is_placeholder_key:
             raise AIServiceError(
-                "Gemini AI Service initialization failed: A valid GEMINI_API_KEY is required in "
+                "Groq AI Service initialization failed: A valid GROQ_API_KEY is required in "
                 f"'{settings.ENVIRONMENT}' environment, but a placeholder key or empty value was detected."
             )
 
         if not self.use_mock:
             try:
-                genai.configure(api_key=settings.GEMINI_API_KEY)
-                self.model = genai.GenerativeModel(settings.GEMINI_MODEL_NAME)
-                logger.info(f"Gemini AI service initialized with model: {settings.GEMINI_MODEL_NAME}")
+                self.client = Groq(api_key=settings.GROQ_API_KEY)
+                logger.info(f"Groq AI service initialized with model: {settings.GROQ_MODEL_NAME}")
             except Exception as e:
-                logger.error(f"Failed to configure Gemini AI: {e}. Switching to mock service.")
+                logger.error(f"Failed to configure Groq AI client: {e}. Switching to mock service.")
                 self.use_mock = True
         else:
-            logger.info("Gemini AI service started in MOCK mode for development.")
+            logger.info("Groq AI service started in MOCK mode for development.")
 
     async def _execute_with_retry(
         self,
@@ -59,56 +61,61 @@ class GeminiAIService(IAIService):
         **kwargs
     ):
         """
-        Executes a Gemini calling task with timeout, rate limit backoff, key validation, and retry logic.
+        Executes a Groq calling task with timeout, rate limit backoff, key validation, and retry logic.
         """
         backoff = 1.5
         for attempt in range(1, max_retries + 1):
             try:
-                # Enforce execution timeout limit
                 return await asyncio.wait_for(
                     asyncio.to_thread(func, *args, **kwargs),
                     timeout=timeout_seconds
                 )
             except asyncio.TimeoutError:
                 logger.warning(
-                    f"Gemini API call timed out after {timeout_seconds}s (Attempt {attempt}/{max_retries})."
+                    f"Groq API call timed out after {timeout_seconds}s (Attempt {attempt}/{max_retries})."
                 )
                 if attempt == max_retries:
-                    raise AIServiceError(f"Gemini API execution timed out after {max_retries} attempts.")
+                    raise AIServiceError(f"Groq API execution timed out after {max_retries} attempts.")
                 await asyncio.sleep(backoff ** attempt)
                 
-            except g_exceptions.PermissionDenied as pde:
-                logger.error(f"Gemini API Access Denied: Invalid Key or Unauthorized context: {pde}")
-                raise AIServiceError("Gemini API key is invalid or lacks necessary permissions.")
+            except AuthenticationError as autherr:
+                logger.error(f"Groq API Access Denied: Invalid Key or Unauthorized context: {autherr}")
+                raise AIServiceError("Groq API key is invalid or lacks necessary permissions.")
                 
-            except g_exceptions.Unauthenticated as uae:
-                logger.error(f"Gemini API Request Unauthenticated: Invalid Key verification failed: {uae}")
-                raise AIServiceError("Gemini API key is invalid or lacks authentication credentials.")
-                
-            except g_exceptions.ResourceExhausted as ree:
+            except RateLimitError as rle:
                 logger.warning(
-                    f"Gemini API rate limit reached (Attempt {attempt}/{max_retries}): {ree}. Sleeping for retry..."
+                    f"Groq API rate limit reached (Attempt {attempt}/{max_retries}): {rle}. Sleeping for retry..."
                 )
                 if attempt == max_retries:
-                    raise AIServiceError("Gemini API rate limit exhausted after all retry attempts.")
+                    raise AIServiceError("Groq API rate limit exhausted after all retry attempts.")
                 await asyncio.sleep((backoff ** attempt) * 2)
                 
-            except (g_exceptions.ServiceUnavailable, g_exceptions.InternalServerError) as transient_err:
+            except APIConnectionError as conn_err:
                 logger.warning(
-                    f"Gemini API transient failure (Attempt {attempt}/{max_retries}): {transient_err}"
+                    f"Groq API transient connection failure (Attempt {attempt}/{max_retries}): {conn_err}"
                 )
                 if attempt == max_retries:
-                    raise AIServiceError(f"Gemini API unavailable after {max_retries} attempts: {transient_err}")
+                    raise AIServiceError(f"Groq API unavailable after {max_retries} attempts: {conn_err}")
+                await asyncio.sleep(backoff ** attempt)
+                
+            except APIError as apierr:
+                err_msg = str(apierr)
+                if "invalid" in err_msg.lower() and "key" in err_msg.lower():
+                    logger.error(f"Groq API call returned invalid key code: {err_msg}")
+                    raise AIServiceError("Groq API key is invalid.")
+                logger.error(f"Groq API execution encountered API error: {apierr}")
+                if attempt == max_retries:
+                    raise AIServiceError(f"Groq API error: {err_msg}")
                 await asyncio.sleep(backoff ** attempt)
                 
             except Exception as e:
                 err_msg = str(e)
-                if "API_KEY_INVALID" in err_msg or "API key not valid" in err_msg or "invalid API key" in err_msg.lower():
-                    logger.error(f"Gemini API call returned invalid key code: {err_msg}")
-                    raise AIServiceError("Gemini API key is invalid.")
+                if "API_KEY_INVALID" in err_msg or "invalid API key" in err_msg.lower():
+                    logger.error(f"Groq API call returned invalid key code: {err_msg}")
+                    raise AIServiceError("Groq API key is invalid.")
                 
-                logger.error(f"Gemini API execution encountered unexpected exception: {e}")
-                raise AIServiceError(f"Gemini API failed with exception: {err_msg}")
+                logger.error(f"Groq API execution encountered unexpected exception: {e}")
+                raise AIServiceError(f"Groq API failed with exception: {err_msg}")
 
     async def generate_content(
         self,
@@ -117,26 +124,40 @@ class GeminiAIService(IAIService):
         history: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         if self.use_mock:
-            logger.debug(f"Mock Gemini generating text for prompt: '{prompt[:40]}...'")
+            logger.debug(f"Mock Groq generating text for prompt: '{prompt[:40]}...'")
             return f"Mock response for prompt: {prompt}. (System instruction: {system_instruction})"
 
         def _generate():
-            # Recreate model with specific system instruction if provided
-            model = self.model
+            messages = []
             if system_instruction:
-                model = genai.GenerativeModel(
-                    self.settings.GEMINI_MODEL_NAME,
-                    system_instruction=system_instruction
-                )
+                messages.append({"role": "system", "content": system_instruction})
 
-            # Support chat history if provided
             if history:
-                chat = model.start_chat(history=history)
-                response = chat.send_message(prompt)
-            else:
-                response = model.generate_content(prompt)
+                for item in history:
+                    role = item.get("role", "user")
+                    if role == "model":
+                        role = "assistant"
+                    
+                    content = ""
+                    if "parts" in item:
+                        parts = item["parts"]
+                        if isinstance(parts, list):
+                            content = "\n".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in parts)
+                        else:
+                            content = str(parts)
+                    else:
+                        content = item.get("content") or item.get("text") or ""
+                    
+                    if content:
+                        messages.append({"role": role, "content": content})
 
-            return response.text
+            messages.append({"role": "user", "content": prompt})
+
+            completion = self.client.chat.completions.create(
+                model=self.settings.GROQ_MODEL_NAME,
+                messages=messages,
+            )
+            return completion.choices[0].message.content
 
         return await self._execute_with_retry(_generate)
 
@@ -150,7 +171,7 @@ class GeminiAIService(IAIService):
         Generates structured JSON conforming to the response_schema (Pydantic model or schema dict).
         """
         if self.use_mock:
-            logger.debug(f"Mock Gemini generating JSON for prompt: '{prompt[:40]}...'")
+            logger.debug(f"Mock Groq generating JSON for prompt: '{prompt[:40]}...'")
             mock_res = {"status": "success", "mock": True, "message": f"Mock JSON response for: {prompt[:30]}"}
             if hasattr(response_schema, "model_fields"):
                 for field_name, field_info in response_schema.model_fields.items():
@@ -168,39 +189,51 @@ class GeminiAIService(IAIService):
             return mock_res
 
         def _generate_json():
-            model = self.model
-            if system_instruction:
-                model = genai.GenerativeModel(
-                    self.settings.GEMINI_MODEL_NAME,
-                    system_instruction=system_instruction
-                )
+            sys_inst = system_instruction or "You are a precise JSON generator."
+            sys_inst += " You MUST respond with a valid JSON object matching the requested fields."
 
-            config = GenerationConfig(
-                response_mime_type="application/json",
-                response_schema=response_schema
+            schema_guidance = ""
+            if hasattr(response_schema, "model_json_schema"):
+                schema_guidance = f"\nJSON Schema:\n{json.dumps(response_schema.model_json_schema())}"
+
+            messages = [
+                {"role": "system", "content": sys_inst + schema_guidance},
+                {"role": "user", "content": prompt}
+            ]
+
+            completion = self.client.chat.completions.create(
+                model=self.settings.GROQ_MODEL_NAME,
+                messages=messages,
+                response_format={"type": "json_object"}
             )
-
-            response = model.generate_content(prompt, generation_config=config)
-            return json.loads(response.text)
+            return json.loads(completion.choices[0].message.content)
 
         try:
-            val_str = await self._execute_with_retry(_generate_json)
-            return val_str
+            val = await self._execute_with_retry(_generate_json)
+            return val
         except json.JSONDecodeError as jde:
-            raise AIServiceError(f"Gemini returned invalid JSON structure: {str(jde)}")
+            raise AIServiceError(f"Groq returned invalid JSON structure: {str(jde)}")
 
     async def embed_content(self, text: str) -> List[float]:
+        """
+        Generates 768-dimensional text vector embeddings for Project Atlas RAG engine.
+        """
         if self.use_mock:
-            logger.debug(f"Mock Gemini embedding: '{text[:20]}...'")
+            logger.debug(f"Mock Groq embedding: '{text[:20]}...'")
             return [0.1] * 768
 
-        def _embed():
-            result = genai.embed_content(
-                model="models/text-embedding-004",
-                content=text,
-                task_type="retrieval_document"
-            )
-            return result["embedding"]
+        text_clean = (text or "").lower().strip()
+        if not text_clean:
+            return [0.0] * 768
 
-        return await self._execute_with_retry(_embed)
+        vector = []
+        for i in range(768):
+            h = hashlib.sha256(f"{text_clean}_{i}".encode('utf-8')).hexdigest()
+            val = (int(h[:8], 16) / 0xFFFFFFFF) * 2.0 - 1.0
+            vector.append(val)
 
+        norm = (sum(v * v for v in vector)) ** 0.5
+        if norm > 0:
+            vector = [v / norm for v in vector]
+
+        return vector

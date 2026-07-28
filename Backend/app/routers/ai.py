@@ -10,8 +10,10 @@ from app.prompts.templates import PromptBuilder
 from app.services import get_ai_service, get_db_service, get_retrieval_service
 from app.services.base import IAIService, IDatabaseService, IRetrievalService
 from app.utils.exceptions import ValidationError, NotFoundError, AuthorizationError
+from app.utils.logger import get_logger
 
-router = APIRouter(prefix="/ai", tags=["Gemini AI Integration"])
+router = APIRouter(prefix="/ai", tags=["Groq AI Integration"])
+logger = get_logger("app.routers.ai")
 
 
 def calculate_rag_confidence(chunks: List[dict]) -> float:
@@ -67,7 +69,7 @@ async def process_chat_prompt(
 ) -> ApiResponse[ChatResponse]:
     """
     RAG-augmented Q&A Chatbot endpoint.
-    Retrieves candidate chunks, builds context prompt, calls Gemini, and returns citations and confidence metrics.
+    Retrieves candidate chunks, validates strict RAG guardrails, calls Groq, and returns citations.
     """
     company_id = current_user.get("tenant_id") or current_user.get("company_id")
     if not company_id:
@@ -75,7 +77,8 @@ async def process_chat_prompt(
 
     # 1. Retrieve company details
     from app.config.settings import get_settings
-    db_service = get_db_service(get_settings())
+    settings = get_settings()
+    db_service = get_db_service(settings)
     company_data = await db_service.get_document("companies", company_id)
 
     # 2. Retrieve top matching document chunks (limit to 5)
@@ -85,6 +88,42 @@ async def process_chat_prompt(
         top_k=5
     )
 
+    # RAG Guardrail 1: Empty retrieval check
+    if not chunks:
+        logger.warning(
+            f"RAG Guardrail Triggered: No company chunks retrieved for query '{payload.prompt[:50]}...' (Company: {company_id})"
+        )
+        return ApiResponse(
+            status="failure",
+            success=False,
+            message="No relevant company knowledge found. Please upload company documents.",
+            data=ChatResponse(
+                answer=None,
+                citations=[],
+                confidence=0.0
+            )
+        )
+
+    # RAG Guardrail 2: Low-similarity threshold check
+    max_similarity = max((float(c.get("similarity") or c.get("similarityScore") or 0.0) for c in chunks), default=0.0)
+    min_threshold = float(getattr(settings, "SIMILARITY_THRESHOLD", 0.25))
+
+    if max_similarity < min_threshold:
+        logger.warning(
+            f"RAG Guardrail Triggered: Max similarity ({max_similarity:.3f}) below threshold ({min_threshold}) "
+            f"for query '{payload.prompt[:50]}...' (Company: {company_id})"
+        )
+        return ApiResponse(
+            status="failure",
+            success=False,
+            message="Insufficient relevant company information was found to answer your question.",
+            data=ChatResponse(
+                answer=None,
+                citations=[],
+                confidence=0.0
+            )
+        )
+
     # 3. Build prompt
     prompt = PromptBuilder.build_retrieval_prompt(
         chunks=chunks,
@@ -93,14 +132,18 @@ async def process_chat_prompt(
         system_instructions=payload.system_instruction
     )
 
-    # 4. Generate answer from Gemini
+    # 4. Generate answer from Groq
     answer = await ai.generate_content(prompt=prompt)
 
     # 5. Extract structured citations list and maximum similarity score (confidence)
     citations = []
     for chunk in chunks:
         chunk_id = chunk.get("chunkId") or chunk.get("chunk_id") or "unknown-chunk"
+        doc_id = chunk.get("documentId") or chunk.get("document_id") or "unknown-doc-id"
         doc_name = chunk.get("documentName") or chunk.get("document_name") or chunk.get("filename") or "unknown-doc"
+        heading_val = chunk.get("heading") or "General Context"
+        dept_val = chunk.get("department") or "General Knowledge"
+        tags_val = chunk.get("tags") or ["policy", "knowledge"]
         page = chunk.get("page") or chunk.get("pageNumber") or chunk.get("page_number")
         text = chunk.get("text") or chunk.get("chunkText") or chunk.get("content") or ""
         score = chunk.get("similarity") or chunk.get("similarityScore") or 0.0
@@ -111,8 +154,12 @@ async def process_chat_prompt(
 
         citation_item = SourceCitation(
             documentName=doc_name,
+            heading=heading_val,
+            department=dept_val,
+            tags=tags_val,
             page=page,
             chunkId=chunk_id,
+            documentId=doc_id,
             text=text,
             similarity=score_val,
             # Legacy copies
@@ -262,7 +309,7 @@ async def retrieval_qa_prompt(
 ) -> ApiResponse[str]:
     """
     RAG-augmented Q&A endpoint.
-    Retrieves chunks, builds context prompt using PromptBuilder, and queries Gemini.
+    Retrieves chunks, builds context prompt using PromptBuilder, and queries Groq.
     """
     company_id = current_user.get("tenant_id") or current_user.get("company_id")
     if not company_id:
@@ -288,7 +335,7 @@ async def retrieval_qa_prompt(
         system_instructions=payload.system_instruction
     )
 
-    # 4. Generate answer from Gemini
+    # 4. Generate answer from Groq
     answer = await ai.generate_content(prompt=prompt)
 
     return ApiResponse(

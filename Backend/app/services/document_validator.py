@@ -23,7 +23,7 @@ class DocumentValidator:
     """
     RAG ingestion validation agent.
     Safeguards the pipeline from ingestion of non-company documentation by classifying
-    the extracted text via Gemini beforehand.
+    the extracted text via Groq beforehand.
     """
 
     def __init__(self, ai_service: IAIService):
@@ -34,7 +34,7 @@ class DocumentValidator:
     ) -> DocumentValidationResult:
         """
         Extracts up to 5000 characters from the document and requests
-        Gemini classification to check for company knowledge compliance.
+        Groq classification to check for company knowledge compliance.
         """
         logger.info(f"Classifying incoming document: '{filename}' (MIME: {content_type})")
 
@@ -124,7 +124,7 @@ class DocumentValidator:
                     reason="Business policy document."
                 )
 
-            # Query real Gemini engine
+            # Query real Groq engine
             response = await self.ai.generate_json(
                 prompt=extracted_text,
                 response_schema=DocumentValidationResult,
@@ -133,7 +133,7 @@ class DocumentValidator:
             return DocumentValidationResult(**response)
 
         except Exception as e:
-            logger.error(f"Gemini document validation crashed: {e}")
+            logger.error(f"Groq document validation crashed: {e}")
             return DocumentValidationResult(
                 accepted=False,
                 category="Validation Error",

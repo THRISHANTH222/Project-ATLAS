@@ -31,7 +31,7 @@ class FirebaseAuthService(IAuthService):
             logger.info("Firebase Auth service started in PRODUCTION mode.")
 
     async def verify_token(self, token: str) -> Dict[str, Any]:
-        if self.use_mock:
+        if self.use_mock or (token.startswith("mock-token-") and self.settings.ENVIRONMENT.lower() in ("development", "testing")):
             if token.startswith("mock-token-"):
                 uid = token.replace("mock-token-", "")
                 tenant_id = None
@@ -55,7 +55,21 @@ class FirebaseAuthService(IAuthService):
         try:
             # check_revoked is set to True to verify status on active sessions
             decoded_token = auth.verify_id_token(token, check_revoked=True)
-            return decoded_token
+            uid = decoded_token.get("uid") or decoded_token.get("sub") or "unknown_user"
+            email = decoded_token.get("email") or ""
+            company_id = decoded_token.get("company_id") or decoded_token.get("tenant_id") or "comp-atlas"
+            
+            claims = {
+                **decoded_token,
+                "uid": uid,
+                "userId": uid,
+                "user_id": uid,
+                "email": email,
+                "company_id": company_id,
+                "companyId": company_id,
+                "tenant_id": company_id,
+            }
+            return claims
         except auth.RevokedIdTokenError:
             raise AuthenticationError("Authentication token has been revoked.")
         except auth.ExpiredIdTokenError:

@@ -180,23 +180,14 @@ class KnowledgeRetrievalService(IRetrievalService):
 
         # 2. Retrieve All Document Chunk Vectors for Company (Tenant Isolation)
         try:
-            logger.debug(f"Querying database embeddings for companyId: {company_id}")
-            chunks = await self.db.query_documents(
-                collection="embeddings",
-                field_path="companyId",
-                op_string="==",
-                value=company_id
-            )
-            
-            # Fallback to check company_id key if no results returned under companyId
+            logger.debug(f"Querying database chunks for companyId: {company_id}")
+            chunks = await self.db.query_documents("chunks", "companyId", "==", company_id)
             if not chunks:
-                logger.debug(f"No results found for companyId. Querying fallback field company_id: {company_id}")
-                chunks = await self.db.query_documents(
-                    collection="embeddings",
-                    field_path="company_id",
-                    op_string="==",
-                    value=company_id
-                )
+                chunks = await self.db.query_documents("chunks", "company_id", "==", company_id)
+            if not chunks:
+                chunks = await self.db.query_documents("embeddings", "companyId", "==", company_id)
+            if not chunks:
+                chunks = await self.db.query_documents("embeddings", "company_id", "==", company_id)
         except Exception as e:
             logger.error(f"Failed to retrieve chunks from database: {e}")
             raise DatabaseError(f"Database query for company document chunks failed: {str(e)}")
@@ -239,7 +230,7 @@ class KnowledgeRetrievalService(IRetrievalService):
         # 4. In-Memory Cosine Similarity Calculation
         scored_chunks = []
         for idx, doc in enumerate(filtered_chunks):
-            vector = doc.get("embeddingVector") or doc.get("embedding_vector")
+            vector = doc.get("embedding") or doc.get("vector") or doc.get("embeddingVector") or doc.get("embedding_vector")
             if not vector:
                 logger.warning(f"Chunk at index {idx} does not contain valid embeddingVector. Skipping.")
                 continue

@@ -112,7 +112,7 @@ class StorageError(AppException):
 
 
 class AIServiceError(AppException):
-    """Raised when an AI service (e.g. Gemini) operation fails."""
+    """Raised when an AI service (e.g. Groq) operation fails."""
 
     def __init__(self, detail: str = "AI service request failed", extra: Optional[Dict[str, Any]] = None):
         super().__init__(

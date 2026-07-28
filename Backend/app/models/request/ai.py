@@ -3,7 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class PromptRequest(BaseModel):
-    """Parameters for AI Content Generation via Gemini."""
+    """Parameters for AI Content Generation via Groq."""
 
     prompt: str = Field(..., min_length=3, description="User prompt text to submit to the model")
     system_instruction: Optional[str] = Field(None, description="Optional override instruction to control personality/behavior")

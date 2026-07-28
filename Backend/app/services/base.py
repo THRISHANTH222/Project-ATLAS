@@ -99,7 +99,7 @@ class IStorageService(ABC):
 
 
 class IAIService(ABC):
-    """Interface for AI/LLM Services (e.g. Gemini)."""
+    """Interface for AI/LLM Services (e.g. Groq)."""
 
     @abstractmethod
     async def generate_content(

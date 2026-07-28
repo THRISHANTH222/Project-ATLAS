@@ -29,9 +29,12 @@ class Settings(BaseSettings):
     SUPABASE_BUCKET: str = "project-atlas-bucket"
     SIGNED_URL_EXPIRATION: int = 600
 
-    # Gemini Settings
-    GEMINI_API_KEY: str = ""
-    GEMINI_MODEL_NAME: str = "gemini-1.5-flash"
+    # Groq Settings
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL_NAME: str = "llama-3.3-70b-versatile"
+
+    # RAG Retrieval Settings
+    SIMILARITY_THRESHOLD: float = 0.25
 
     model_config = SettingsConfigDict(
         env_file=".env",

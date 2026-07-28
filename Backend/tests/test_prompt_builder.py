@@ -143,7 +143,7 @@ def test_ai_prompt_qa_endpoint_success(client: TestClient) -> None:
     assert resp["status"] == "success"
     assert resp["success"] is True
     
-    # Gemini mock returns a success text string
+    # Groq mock returns a success text string
     assert "Mock response" in resp["data"]
     assert "financial returns" in resp["data"]
 

@@ -1,0 +1,482 @@
+
+======================================================
+1. AUTHENTICATION & HEALTH VERIFICATION
+======================================================
+
+--- 1.1 GET /health Status Code ---
+200
+
+--- 1.1 GET /health Response Body ---
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "environment": "development",
+  "timestamp": "2026-07-27T17:10:34.878500+00:00",
+  "services": {
+    "database": {
+      "status": "healthy",
+      "latency_ms": 0.01,
+      "details": null
+    },
+    "storage": {
+      "status": "healthy",
+      "latency_ms": 0.01,
+      "details": null
+    },
+    "ai_service": {
+      "status": "healthy",
+      "latency_ms": 1.56,
+      "details": null
+    }
+  }
+}
+
+--- 1.2 GET /ai/chat/history (Protected Endpoint) Status Code ---
+200
+
+--- 1.2 GET /ai/chat/history Response Body ---
+{
+  "status": "success",
+  "success": true,
+  "message": "Chat history list retrieved successfully",
+  "data": []
+}
+
+======================================================
+2. DOCUMENT INGESTION VERIFICATION (PDF, DOCX, TXT, CSV)
+======================================================
+
+--- Upload Company_Travel_Policy.pdf Status Code ---
+201
+
+--- Upload Company_Travel_Policy.pdf Response ---
+{
+  "status": "success",
+  "success": true,
+  "message": "Document uploaded successfully.",
+  "data": {
+    "id": "7fa7c54c-c37b-4a29-b0dd-df16bbafedf4",
+    "company_id": "comp-atlas-corp",
+    "filename": "Company_Travel_Policy.pdf",
+    "file_size": 337,
+    "content_type": "application/pdf",
+    "hash": "403d7e4d8a731c1b2d3814326e515a7e5532eb17f3b7e533b799bfe626deeb61",
+    "storage_path": "comp-atlas-corp/documents/7fa7c54c-c37b-4a29-b0dd-df16bbafedf4_Company_Travel_Policy.pdf",
+    "public_url": "http://localhost:8000/storage/local-file/comp-atlas-corp/documents/7fa7c54c-c37b-4a29-b0dd-df16bbafedf4_Company_Travel_Policy.pdf?expires=3600&method=GET",
+    "uploaded_by": "dev-user123",
+    "uploaded_at": "2026-07-27T17:10:35.598581+00:00",
+    "documentId": "7fa7c54c-c37b-4a29-b0dd-df16bbafedf4",
+    "companyId": "comp-atlas-corp",
+    "storagePath": "comp-atlas-corp/documents/7fa7c54c-c37b-4a29-b0dd-df16bbafedf4_Company_Travel_Policy.pdf",
+    "status": "Uploaded"
+  }
+}
+
+--- Upload IT_Security_Standard.docx Status Code ---
+201
+
+--- Upload IT_Security_Standard.docx Response ---
+{
+  "status": "success",
+  "success": true,
+  "message": "Document uploaded successfully.",
+  "data": {
+    "id": "c265b893-1788-4a3b-affa-b530b94e87a1",
+    "company_id": "comp-atlas-corp",
+    "filename": "IT_Security_Standard.docx",
+    "file_size": 329,
+    "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "hash": "162292f527621a157892ef8edf1dafc0e5a955323144318c601a68684dd560cc",
+    "storage_path": "comp-atlas-corp/documents/c265b893-1788-4a3b-affa-b530b94e87a1_IT_Security_Standard.docx",
+    "public_url": "http://localhost:8000/storage/local-file/comp-atlas-corp/documents/c265b893-1788-4a3b-affa-b530b94e87a1_IT_Security_Standard.docx?expires=3600&method=GET",
+    "uploaded_by": "dev-user123",
+    "uploaded_at": "2026-07-27T17:10:36.013913+00:00",
+    "documentId": "c265b893-1788-4a3b-affa-b530b94e87a1",
+    "companyId": "comp-atlas-corp",
+    "storagePath": "comp-atlas-corp/documents/c265b893-1788-4a3b-affa-b530b94e87a1_IT_Security_Standard.docx",
+    "status": "Uploaded"
+  }
+}
+
+--- Upload Parental_Leave_Benefit.txt Status Code ---
+201
+
+--- Upload Parental_Leave_Benefit.txt Response ---
+{
+  "status": "success",
+  "success": true,
+  "message": "Document uploaded successfully.",
+  "data": {
+    "id": "0310df48-1e1a-4ce3-966c-d2fc0f1abd22",
+    "company_id": "comp-atlas-corp",
+    "filename": "Parental_Leave_Benefit.txt",
+    "file_size": 335,
+    "content_type": "text/plain",
+    "hash": "2297b14f915816ddad6103ae82a071ba633816d933ffc8f5280d7d9f062f00f2",
+    "storage_path": "comp-atlas-corp/documents/0310df48-1e1a-4ce3-966c-d2fc0f1abd22_Parental_Leave_Benefit.txt",
+    "public_url": "http://localhost:8000/storage/local-file/comp-atlas-corp/documents/0310df48-1e1a-4ce3-966c-d2fc0f1abd22_Parental_Leave_Benefit.txt?expires=3600&method=GET",
+    "uploaded_by": "dev-user123",
+    "uploaded_at": "2026-07-27T17:10:36.527612+00:00",
+    "documentId": "0310df48-1e1a-4ce3-966c-d2fc0f1abd22",
+    "companyId": "comp-atlas-corp",
+    "storagePath": "comp-atlas-corp/documents/0310df48-1e1a-4ce3-966c-d2fc0f1abd22_Parental_Leave_Benefit.txt",
+    "status": "Uploaded"
+  }
+}
+
+--- Upload Financial_Stipends.xlsx Status Code ---
+201
+
+--- Upload Financial_Stipends.xlsx Response ---
+{
+  "status": "success",
+  "success": true,
+  "message": "Document uploaded successfully.",
+  "data": {
+    "id": "2911eb1f-bf26-40c5-9b7d-63abe4d0ba54",
+    "company_id": "comp-atlas-corp",
+    "filename": "Financial_Stipends.xlsx",
+    "file_size": 209,
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "hash": "942e0d32b71a6ac7ab6148f5881c5c4074247bb1ab5388c4a82a3b01638f4120",
+    "storage_path": "comp-atlas-corp/documents/2911eb1f-bf26-40c5-9b7d-63abe4d0ba54_Financial_Stipends.xlsx",
+    "public_url": "http://localhost:8000/storage/local-file/comp-atlas-corp/documents/2911eb1f-bf26-40c5-9b7d-63abe4d0ba54_Financial_Stipends.xlsx?expires=3600&method=GET",
+    "uploaded_by": "dev-user123",
+    "uploaded_at": "2026-07-27T17:10:37.055032+00:00",
+    "documentId": "2911eb1f-bf26-40c5-9b7d-63abe4d0ba54",
+    "companyId": "comp-atlas-corp",
+    "storagePath": "comp-atlas-corp/documents/2911eb1f-bf26-40c5-9b7d-63abe4d0ba54_Financial_Stipends.xlsx",
+    "status": "Uploaded"
+  }
+}
+
+======================================================
+3. COMPANY DOCUMENTS & VECTOR INDEX VERIFICATION
+======================================================
+
+--- 3.1 GET /documents Status Code ---
+200
+
+--- 3.1 GET /documents Response ---
+{
+  "status": "success",
+  "success": true,
+  "message": "Company documents retrieved successfully.",
+  "data": [
+    {
+      "documentId": "7fa7c54c-c37b-4a29-b0dd-df16bbafedf4",
+      "companyId": "comp-atlas-corp",
+      "filename": "Company_Travel_Policy.pdf",
+      "storagePath": "comp-atlas-corp/documents/7fa7c54c-c37b-4a29-b0dd-df16bbafedf4_Company_Travel_Policy.pdf",
+      "contentType": "application/pdf",
+      "fileSize": 337,
+      "hash": "403d7e4d8a731c1b2d3814326e515a7e5532eb17f3b7e533b799bfe626deeb61",
+      "status": "Synced",
+      "createdAt": "2026-07-27T17:10:35.598581+00:00",
+      "updatedAt": "2026-07-27T17:10:35.598581+00:00",
+      "id": "7fa7c54c-c37b-4a29-b0dd-df16bbafedf4",
+      "company_id": "comp-atlas-corp",
+      "file_size": 337,
+      "content_type": "application/pdf",
+      "storage_path": "comp-atlas-corp/documents/7fa7c54c-c37b-4a29-b0dd-df16bbafedf4_Company_Travel_Policy.pdf",
+      "public_url": "http://localhost:8000/storage/local-file/comp-atlas-corp/documents/7fa7c54c-c37b-4a29-b0dd-df16bbafedf4_Company_Travel_Policy.pdf?expires=3600&method=GET",
+      "uploaded_by": "dev-user123",
+      "uploaded_at": "2026-07-27T17:10:35.598581+00:00",
+      "vectorCount": 1,
+      "vector_count": 1,
+      "chunkCount": 1
+    },
+    {
+      "documentId": "c265b893-1788-4a3b-affa-b530b94e87a1",
+      "companyId": "comp-atlas-corp",
+      "filename": "IT_Security_Standard.docx",
+      "storagePath": "comp-atlas-corp/documents/c265b893-1788-4a3b-affa-b530b94e87a1_IT_Security_Standard.docx",
+      "contentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "fileSize": 329,
+      "hash": "162292f527621a157892ef8edf1dafc0e5a955323144318c601a68684dd560cc",
+      "status": "Synced",
+      "createdAt": "2026-07-27T17:10:36.013913+00:00",
+      "updatedAt": "2026-07-27T17:10:36.013913+00:00",
+      "id": "c265b893-1788-4a3b-affa-b530b94e87a1",
+      "company_id": "comp-atlas-corp",
+      "file_size": 329,
+      "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "storage_path": "comp-atlas-corp/documents/c265b893-1788-4a3b-affa-b530b94e87a1_IT_Security_Standard.docx",
+      "public_url": "http://localhost:8000/storage/local-file/comp-atlas-corp/documents/c265b893-1788-4a3b-affa-b530b94e87a1_IT_Security_Standard.docx?expires=3600&method=GET",
+      "uploaded_by": "dev-user123",
+      "uploaded_at": "2026-07-27T17:10:36.013913+00:00",
+      "vectorCount": 1,
+      "vector_count": 1,
+      "chunkCount": 1
+    },
+    {
+      "documentId": "0310df48-1e1a-4ce3-966c-d2fc0f1abd22",
+      "companyId": "comp-atlas-corp",
+      "filename": "Parental_Leave_Benefit.txt",
+      "storagePath": "comp-atlas-corp/documents/0310df48-1e1a-4ce3-966c-d2fc0f1abd22_Parental_Leave_Benefit.txt",
+      "contentType": "text/plain",
+      "fileSize": 335,
+      "hash": "2297b14f915816ddad6103ae82a071ba633816d933ffc8f5280d7d9f062f00f2",
+      "status": "Synced",
+      "createdAt": "2026-07-27T17:10:36.527612+00:00",
+      "updatedAt": "2026-07-27T17:10:36.527612+00:00",
+      "id": "0310df48-1e1a-4ce3-966c-d2fc0f1abd22",
+      "company_id": "comp-atlas-corp",
+      "file_size": 335,
+      "content_type": "text/plain",
+      "storage_path": "comp-atlas-corp/documents/0310df48-1e1a-4ce3-966c-d2fc0f1abd22_Parental_Leave_Benefit.txt",
+      "public_url": "http://localhost:8000/storage/local-file/comp-atlas-corp/documents/0310df48-1e1a-4ce3-966c-d2fc0f1abd22_Parental_Leave_Benefit.txt?expires=3600&method=GET",
+      "uploaded_by": "dev-user123",
+      "uploaded_at": "2026-07-27T17:10:36.527612+00:00",
+      "vectorCount": 1,
+      "vector_count": 1,
+      "chunkCount": 1
+    },
+    {
+      "documentId": "2911eb1f-bf26-40c5-9b7d-63abe4d0ba54",
+      "companyId": "comp-atlas-corp",
+      "filename": "Financial_Stipends.xlsx",
+      "storagePath": "comp-atlas-corp/documents/2911eb1f-bf26-40c5-9b7d-63abe4d0ba54_Financial_Stipends.xlsx",
+      "contentType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "fileSize": 209,
+      "hash": "942e0d32b71a6ac7ab6148f5881c5c4074247bb1ab5388c4a82a3b01638f4120",
+      "status": "Synced",
+      "createdAt": "2026-07-27T17:10:37.055032+00:00",
+      "updatedAt": "2026-07-27T17:10:37.055032+00:00",
+      "id": "2911eb1f-bf26-40c5-9b7d-63abe4d0ba54",
+      "company_id": "comp-atlas-corp",
+      "file_size": 209,
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "storage_path": "comp-atlas-corp/documents/2911eb1f-bf26-40c5-9b7d-63abe4d0ba54_Financial_Stipends.xlsx",
+      "public_url": "http://localhost:8000/storage/local-file/comp-atlas-corp/documents/2911eb1f-bf26-40c5-9b7d-63abe4d0ba54_Financial_Stipends.xlsx?expires=3600&method=GET",
+      "uploaded_by": "dev-user123",
+      "uploaded_at": "2026-07-27T17:10:37.055032+00:00",
+      "vectorCount": 1,
+      "vector_count": 1,
+      "chunkCount": 1
+    }
+  ]
+}
+
+--- 3.2 POST /retrieval/query 'paid parental leave weeks' Status Code ---
+200
+
+--- 3.2 Search Results ---
+{
+  "status": "success",
+  "success": true,
+  "message": "Relevant document chunks retrieved successfully.",
+  "data": [
+    {
+      "chunkId": "chunk_0310df48-1e1a-4ce3-966c-d2fc0f1abd22_1",
+      "documentId": "0310df48-1e1a-4ce3-966c-d2fc0f1abd22",
+      "documentName": "Parental_Leave_Benefit.txt",
+      "page": 1,
+      "similarity": 0.27666478044061377,
+      "text": "PROJECT ATLAS ENTERPRISE TXT DOCUMENT\nDocument ID: DOC-TXT-003\nTitle: Health & Wellness Parental Leave Benefit\nSection 1: Paid Parental Leave\nEligible full-time employees receive 16 weeks of 100% paid parental leave following the birth or adoption of a child.\nLeave can be taken continuously or in 2-week blocks within the first year.",
+      "pageNumber": 1,
+      "similarityScore": 0.27666478044061377,
+      "chunkText": "PROJECT ATLAS ENTERPRISE TXT DOCUMENT\nDocument ID: DOC-TXT-003\nTitle: Health & Wellness Parental Leave Benefit\nSection 1: Paid Parental Leave\nEligible full-time employees receive 16 weeks of 100% paid parental leave following the birth or adoption of a child.\nLeave can be taken continuously or in 2-week blocks within the first year."
+    },
+    {
+      "chunkId": "chunk_2911eb1f-bf26-40c5-9b7d-63abe4d0ba54_1",
+      "documentId": "2911eb1f-bf26-40c5-9b7d-63abe4d0ba54",
+      "documentName": "Financial_Stipends.xlsx",
+      "page": 1,
+      "similarity": 0.006628708975061304,
+      "text": "DocumentID,Title,Department,PolicyValue\nDOC-XLSX-004,Employee Equipment Stipend,Operations,$1200 Work From Home Hardware Allowance\nDOC-XLSX-004,Tuition Reimbursement,HR,$5000 Annual Education Assistance Grant",
+      "pageNumber": 1,
+      "similarityScore": 0.006628708975061304,
+      "chunkText": "DocumentID,Title,Department,PolicyValue\nDOC-XLSX-004,Employee Equipment Stipend,Operations,$1200 Work From Home Hardware Allowance\nDOC-XLSX-004,Tuition Reimbursement,HR,$5000 Annual Education Assistance Grant"
+    },
+    {
+      "chunkId": "chunk_c265b893-1788-4a3b-affa-b530b94e87a1_1",
+      "documentId": "c265b893-1788-4a3b-affa-b530b94e87a1",
+      "documentName": "IT_Security_Standard.docx",
+      "page": 1,
+      "similarity": 0.0006612000552720549,
+      "text": "PROJECT ATLAS ENTERPRISE DOCX DOCUMENT\nDocument ID: DOC-DOCX-002\nTitle: IT Security & Password Enforcement Standard\nSection 1: Password Complexity Requirements\nAll employee accounts must use passwords at least 16 characters in length containing uppercase, lowercase, numbers, and special symbols.\nPasswords expire every 90 days.",
+      "pageNumber": 1,
+      "similarityScore": 0.0006612000552720549,
+      "chunkText": "PROJECT ATLAS ENTERPRISE DOCX DOCUMENT\nDocument ID: DOC-DOCX-002\nTitle: IT Security & Password Enforcement Standard\nSection 1: Password Complexity Requirements\nAll employee accounts must use passwords at least 16 characters in length containing uppercase, lowercase, numbers, and special symbols.\nPasswords expire every 90 days."
+    },
+    {
+      "chunkId": "chunk_7fa7c54c-c37b-4a29-b0dd-df16bbafedf4_1",
+      "documentId": "7fa7c54c-c37b-4a29-b0dd-df16bbafedf4",
+      "documentName": "Company_Travel_Policy.pdf",
+      "page": 1,
+      "similarity": 0.0,
+      "text": "PROJECT ATLAS ENTERPRISE PDF DOCUMENT\nDocument ID: DOC-PDF-001\nTitle: Corporate Travel & Expense Reimbursement Policy\nSection 1: Daily Meal Allowance\nEmployees traveling on official company business are entitled to a daily meal allowance of $75 per day.\nAll receipts over $25 must be uploaded to the Atlas portal within 5 business days.",
+      "pageNumber": 1,
+      "similarityScore": 0.0,
+      "chunkText": "PROJECT ATLAS ENTERPRISE PDF DOCUMENT\nDocument ID: DOC-PDF-001\nTitle: Corporate Travel & Expense Reimbursement Policy\nSection 1: Daily Meal Allowance\nEmployees traveling on official company business are entitled to a daily meal allowance of $75 per day.\nAll receipts over $25 must be uploaded to the Atlas portal within 5 business days."
+    }
+  ]
+}
+
+======================================================
+4. GROQ-POWERED AI CHAT & RAG ENGINE VERIFICATION
+======================================================
+
+--- 4.1 Empty KB Guardrail Status Code ---
+200
+
+--- 4.1 Empty KB Guardrail Response ---
+{
+  "status": "failure",
+  "success": false,
+  "message": "No relevant company knowledge found. Please upload company documents.",
+  "data": {
+    "answer": null,
+    "citations": [],
+    "confidence": 0.0
+  }
+}
+
+--- 4.2 Chat Query (Paid Parental Leave) Status Code ---
+200
+
+--- 4.2 Chat Query Response ---
+{
+  "status": "success",
+  "success": true,
+  "message": "AI chat processing complete",
+  "data": {
+    "answer": "Eligible full-time employees receive 16 weeks of 100% paid parental leave following the birth or adoption of a child [chunk_0310df48-1e1a-4ce3-966c-d2fc0f1abd22_1].",
+    "citations": [
+      {
+        "documentName": "Parental_Leave_Benefit.txt",
+        "heading": "PROJECT ATLAS ENTERPRISE TXT DOCUMENT",
+        "department": "General Knowledge",
+        "tags": [
+          "policy",
+          "knowledge"
+        ],
+        "page": 1,
+        "chunkId": "chunk_0310df48-1e1a-4ce3-966c-d2fc0f1abd22_1",
+        "documentId": "0310df48-1e1a-4ce3-966c-d2fc0f1abd22",
+        "text": "PROJECT ATLAS ENTERPRISE TXT DOCUMENT\nDocument ID: DOC-TXT-003\nTitle: Health & Wellness Parental Leave Benefit\nSection 1: Paid Parental Leave\nEligible full-time employees receive 16 weeks of 100% paid parental leave following the birth or adoption of a child.\nLeave can be taken continuously or in 2-week blocks within the first year.",
+        "similarity": 0.20129729327292145,
+        "document_name": "Parental_Leave_Benefit.txt",
+        "page_number": 1,
+        "chunk_text": "PROJECT ATLAS ENTERPRISE TXT DOCUMENT\nDocument ID: DOC-TXT-003\nTitle: Health & Wellness Parental Leave Benefit\nSection 1: Paid Parental Leave\nEligible full-time employees receive 16 weeks of 100% paid parental leave following the birth or adoption of a child.\nLeave can be taken continuously or in 2-week blocks within the first year.",
+        "similarity_score": 0.20129729327292145
+      },
+      {
+        "documentName": "Company_Travel_Policy.pdf",
+        "heading": "PROJECT ATLAS ENTERPRISE PDF DOCUMENT",
+        "department": "General Knowledge",
+        "tags": [
+          "policy",
+          "knowledge"
+        ],
+        "page": 1,
+        "chunkId": "chunk_7fa7c54c-c37b-4a29-b0dd-df16bbafedf4_1",
+        "documentId": "7fa7c54c-c37b-4a29-b0dd-df16bbafedf4",
+        "text": "PROJECT ATLAS ENTERPRISE PDF DOCUMENT\nDocument ID: DOC-PDF-001\nTitle: Corporate Travel & Expense Reimbursement Policy\nSection 1: Daily Meal Allowance\nEmployees traveling on official company business are entitled to a daily meal allowance of $75 per day.\nAll receipts over $25 must be uploaded to the Atlas portal within 5 business days.",
+        "similarity": 0.04470923806086627,
+        "document_name": "Company_Travel_Policy.pdf",
+        "page_number": 1,
+        "chunk_text": "PROJECT ATLAS ENTERPRISE PDF DOCUMENT\nDocument ID: DOC-PDF-001\nTitle: Corporate Travel & Expense Reimbursement Policy\nSection 1: Daily Meal Allowance\nEmployees traveling on official company business are entitled to a daily meal allowance of $75 per day.\nAll receipts over $25 must be uploaded to the Atlas portal within 5 business days.",
+        "similarity_score": 0.04470923806086627
+      },
+      {
+        "documentName": "IT_Security_Standard.docx",
+        "heading": "PROJECT ATLAS ENTERPRISE DOCX DOCUMENT",
+        "department": "General Knowledge",
+        "tags": [
+          "policy",
+          "knowledge"
+        ],
+        "page": 1,
+        "chunkId": "chunk_c265b893-1788-4a3b-affa-b530b94e87a1_1",
+        "documentId": "c265b893-1788-4a3b-affa-b530b94e87a1",
+        "text": "PROJECT ATLAS ENTERPRISE DOCX DOCUMENT\nDocument ID: DOC-DOCX-002\nTitle: IT Security & Password Enforcement Standard\nSection 1: Password Complexity Requirements\nAll employee accounts must use passwords at least 16 characters in length containing uppercase, lowercase, numbers, and special symbols.\nPasswords expire every 90 days.",
+        "similarity": 0.001757950973447304,
+        "document_name": "IT_Security_Standard.docx",
+        "page_number": 1,
+        "chunk_text": "PROJECT ATLAS ENTERPRISE DOCX DOCUMENT\nDocument ID: DOC-DOCX-002\nTitle: IT Security & Password Enforcement Standard\nSection 1: Password Complexity Requirements\nAll employee accounts must use passwords at least 16 characters in length containing uppercase, lowercase, numbers, and special symbols.\nPasswords expire every 90 days.",
+        "similarity_score": 0.001757950973447304
+      },
+      {
+        "documentName": "Financial_Stipends.xlsx",
+        "heading": "DocumentID,Title,Department,PolicyValue",
+        "department": "General Knowledge",
+        "tags": [
+          "policy",
+          "knowledge"
+        ],
+        "page": 1,
+        "chunkId": "chunk_2911eb1f-bf26-40c5-9b7d-63abe4d0ba54_1",
+        "documentId": "2911eb1f-bf26-40c5-9b7d-63abe4d0ba54",
+        "text": "DocumentID,Title,Department,PolicyValue\nDOC-XLSX-004,Employee Equipment Stipend,Operations,$1200 Work From Home Hardware Allowance\nDOC-XLSX-004,Tuition Reimbursement,HR,$5000 Annual Education Assistance Grant",
+        "similarity": 0.0,
+        "document_name": "Financial_Stipends.xlsx",
+        "page_number": 1,
+        "chunk_text": "DocumentID,Title,Department,PolicyValue\nDOC-XLSX-004,Employee Equipment Stipend,Operations,$1200 Work From Home Hardware Allowance\nDOC-XLSX-004,Tuition Reimbursement,HR,$5000 Annual Education Assistance Grant",
+        "similarity_score": 0.0
+      }
+    ],
+    "confidence": 49.1
+  }
+}
+
+--- 4.3 GET /ai/chat/debug Status Code ---
+200
+
+--- 4.3 GET /ai/chat/debug Response ---
+{
+  "status": "success",
+  "success": true,
+  "message": "Retrieval debug analysis retrieved successfully.",
+  "data": {
+    "query": "paid parental leave",
+    "embeddingScore": 0.08116379194679588,
+    "retrievedChunks": [
+      {
+        "similarity": 0.2709085986783836,
+        "page": 1,
+        "heading": "PROJECT ATLAS ENTERPRISE TXT DOCUMENT",
+        "chunkId": "chunk_0310df48-1e1a-4ce3-966c-d2fc0f1abd22_1"
+      },
+      {
+        "similarity": 0.046748365798683515,
+        "page": 1,
+        "heading": "PROJECT ATLAS ENTERPRISE PDF DOCUMENT",
+        "chunkId": "chunk_7fa7c54c-c37b-4a29-b0dd-df16bbafedf4_1"
+      },
+      {
+        "similarity": 0.006998203310116367,
+        "page": 1,
+        "heading": "DocumentID,Title,Department,PolicyValue",
+        "chunkId": "chunk_2911eb1f-bf26-40c5-9b7d-63abe4d0ba54_1"
+      },
+      {
+        "similarity": 0.0,
+        "page": 1,
+        "heading": "PROJECT ATLAS ENTERPRISE DOCX DOCUMENT",
+        "chunkId": "chunk_c265b893-1788-4a3b-affa-b530b94e87a1_1"
+      }
+    ],
+    "responseTime": 3.99,
+    "confidence": 50.1,
+    "promptLength": 2349
+  }
+}
+
+======================================================
+5. GROQ DOCUMENT VALIDATION REJECTION TEST (ACADEMIC PDF BLOCK)
+======================================================
+
+--- 5. Academic PDF Upload Rejection Status Code ---
+400
+
+--- 5. Academic PDF Rejection Response ---
+{
+  "error": "Unsupported document",
+  "reason": "The document appears to be university study material, specifically a chapter from physics lecture notes, and includes a homework assignment, indicating it is not company or organizational knowledge."
+}
+
+======================================================
+6. ALL END-TO-END VERIFICATIONS PASSED SUCCESSFULLY!
+======================================================

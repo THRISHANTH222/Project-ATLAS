@@ -13,6 +13,32 @@ logger = get_logger("app.routers.documents")
 
 
 @router.get(
+    "",
+    response_model=ApiResponse[list],
+    status_code=status.HTTP_200_OK,
+    summary="List company documents",
+    description="Retrieves all document metadata records for the authenticated tenant company.",
+)
+async def list_documents(
+    current_user: dict = Depends(get_current_user),
+    db: IDatabaseService = Depends(get_db_service),
+) -> ApiResponse[list]:
+    """
+    HTTP Handler to query all document metadata for the user's company tenant.
+    """
+    user_company_id = current_user.get("tenant_id") or current_user.get("company_id") or "comp-atlas"
+    docs = await db.query_documents("documents", "companyId", "==", user_company_id)
+    if not docs:
+        docs = await db.query_documents("documents", "company_id", "==", user_company_id)
+    return ApiResponse(
+        status="success",
+        success=True,
+        message="Company documents retrieved successfully.",
+        data=docs
+    )
+
+
+@router.get(
     "/{document_id}",
     response_model=ApiResponse[DocumentDownloadResponse],
     status_code=status.HTTP_200_OK,
@@ -177,6 +203,19 @@ async def delete_document(
             await db.delete_document("uploads", document_id)
         except Exception:
             logger.debug(f"Optional 'uploads' document not found or could not be deleted for ID: '{document_id}'")
+
+        # Purge associated vector chunks to prevent orphan chunks in Firestore
+        try:
+            doc_chunks = await db.query_documents("chunks", "documentId", "==", document_id)
+            if not doc_chunks:
+                doc_chunks = await db.query_documents("chunks", "document_id", "==", document_id)
+            for chunk_record in doc_chunks:
+                cid = chunk_record.get("chunkId") or chunk_record.get("chunk_id") or chunk_record.get("id")
+                if cid:
+                    await db.delete_document("chunks", cid)
+            logger.info(f"Cleaned up {len(doc_chunks)} vector chunks for document ID: '{document_id}'")
+        except Exception as chunk_err:
+            logger.warning(f"Chunk cleanup warning for document '{document_id}': {chunk_err}")
             
     except Exception as e:
         logger.critical(

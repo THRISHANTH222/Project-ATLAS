@@ -6,8 +6,12 @@ class SourceCitation(BaseModel):
     """Detailed source citation metadata for RAG-augmented answers."""
 
     documentName: Optional[str] = Field(None, description="Name of the source document")
+    heading: Optional[str] = Field(None, description="Section heading title")
+    department: Optional[str] = Field(None, description="Department taxonomy")
+    tags: Optional[List[str]] = Field(default_factory=list, description="Taxonomy tags")
     page: Optional[int] = Field(None, description="Page number of the chunk (if available)")
     chunkId: str = Field(..., description="Unique identifier of the source chunk")
+    documentId: Optional[str] = Field(None, description="Unique identifier of source document")
     text: str = Field(..., description="Excerpt text content of the chunk")
     similarity: float = Field(..., description="Cosine similarity score of the chunk to the query")
 
@@ -21,7 +25,7 @@ class SourceCitation(BaseModel):
 class ChatResponse(BaseModel):
     """Structured response for Q&A chatbot queries with citations and confidence metrics."""
 
-    answer: str = Field(..., description="The generated response text from the model")
+    answer: Optional[str] = Field(None, description="The generated response text from the model")
     citations: List[SourceCitation] = Field(default_factory=list, description="Structured source citations list used to formulate the answer")
     confidence: float = Field(..., description="Confidence similarity score from the underlying retrieval service (0.0 to 1.0)")
 
@@ -31,7 +35,7 @@ class ChatHistoryRecord(BaseModel):
 
     id: str = Field(..., description="Unique database document identifier of the session log")
     question: str = Field(..., description="User query question message")
-    answer: str = Field(..., description="The generated response text from the model")
+    answer: Optional[str] = Field(None, description="The generated response text from the model")
     citations: List[SourceCitation] = Field(default_factory=list, description="List of source document citations used")
     confidence: float = Field(..., description="Vector cosine similarity score (confidence)")
     timestamp: str = Field(..., description="ISO 8601 string timestamp representation of the query event time")

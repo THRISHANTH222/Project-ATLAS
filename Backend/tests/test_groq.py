@@ -1,24 +1,24 @@
 import pytest
 import asyncio
-import google.api_core.exceptions as g_exceptions
+from groq import RateLimitError, AuthenticationError
 from app.config.settings import Settings
-from app.services.ai_service import GeminiAIService
+from app.services.ai_service import GroqAIService
 from app.utils.exceptions import AIServiceError
 
 # Standard test settings
 test_settings = Settings(
     ENVIRONMENT="development",
     FIREBASE_PROJECT_ID="mock-project",
-    GEMINI_API_KEY="valid-key-format-12345", # Ensure use_mock is False
-    GEMINI_MODEL_NAME="gemini-1.5-flash"
+    GROQ_API_KEY="gsk_valid_key_format_12345", # Ensure use_mock is False
+    GROQ_MODEL_NAME="llama-3.3-70b-versatile"
 )
 
 
 @pytest.mark.asyncio
-async def test_gemini_retry_success() -> None:
+async def test_groq_retry_success() -> None:
     """Verifies that a successful API call returns immediately without retrying."""
-    ai = GeminiAIService(test_settings)
-    ai.use_mock = False # force real code path (with mock call targets)
+    ai = GroqAIService(test_settings)
+    ai.use_mock = False # force real code path
     
     call_count = 0
     
@@ -33,9 +33,9 @@ async def test_gemini_retry_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gemini_retry_on_rate_limit() -> None:
+async def test_groq_retry_on_rate_limit() -> None:
     """Verifies that API rate limits trigger retries with backoff."""
-    ai = GeminiAIService(test_settings)
+    ai = GroqAIService(test_settings)
     ai.use_mock = False
     
     call_count = 0
@@ -44,8 +44,11 @@ async def test_gemini_retry_on_rate_limit() -> None:
         nonlocal call_count
         call_count += 1
         if call_count < 3:
-            # First and second attempt fail with rate limits
-            raise g_exceptions.ResourceExhausted("Rate limit exceeded")
+            # Create dummy httpx response for Groq RateLimitError
+            import httpx
+            request = httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions")
+            response = httpx.Response(429, request=request)
+            raise RateLimitError("Rate limit exceeded", response=response, body=None)
         return "success-after-retries"
 
     # Inject mock sleep to keep tests fast
@@ -65,9 +68,9 @@ async def test_gemini_retry_on_rate_limit() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gemini_invalid_key_fails_immediately() -> None:
+async def test_groq_invalid_key_fails_immediately() -> None:
     """Verifies that invalid API Key errors abort retries instantly."""
-    ai = GeminiAIService(test_settings)
+    ai = GroqAIService(test_settings)
     ai.use_mock = False
     
     call_count = 0
@@ -75,7 +78,10 @@ async def test_gemini_invalid_key_fails_immediately() -> None:
     def dummy_invalid_key():
         nonlocal call_count
         call_count += 1
-        raise g_exceptions.PermissionDenied("API_KEY_INVALID")
+        import httpx
+        request = httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions")
+        response = httpx.Response(401, request=request)
+        raise AuthenticationError("Invalid API Key", response=response, body=None)
         
     with pytest.raises(AIServiceError) as exc_info:
         await ai._execute_with_retry(dummy_invalid_key, max_retries=3)
@@ -86,9 +92,9 @@ async def test_gemini_invalid_key_fails_immediately() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gemini_timeout_recovery() -> None:
+async def test_groq_timeout_recovery() -> None:
     """Verifies that transient API timeouts are retried."""
-    ai = GeminiAIService(test_settings)
+    ai = GroqAIService(test_settings)
     ai.use_mock = False
     
     call_count = 0
@@ -97,7 +103,6 @@ async def test_gemini_timeout_recovery() -> None:
         nonlocal call_count
         call_count += 1
         if call_count < 2:
-            # Let the first call block to exceed mock timeout setup
             import time
             time.sleep(0.5)
         return "success-after-timeout"

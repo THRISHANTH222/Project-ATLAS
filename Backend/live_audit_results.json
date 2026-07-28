@@ -1,0 +1,18 @@
+{
+  "server_pid": "3644",
+  "comp_atlas_exists": false,
+  "comp_atlas_doc": null,
+  "companies_count": 1,
+  "companies_ids": [
+    "company001"
+  ],
+  "users_count": 0,
+  "users_ids": [],
+  "documents_count": 3,
+  "documents_ids": [
+    "573c0c03-5abf-49a6-af07-49afb9ecdd3a",
+    "6385f041-aebf-4c61-a9ed-542bcadc16ba",
+    "b327ff23-e973-43ba-be13-5d6b72711d42"
+  ],
+  "user_docs_details": []
+}

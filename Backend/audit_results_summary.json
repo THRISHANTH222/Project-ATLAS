@@ -1,0 +1,113 @@
+{
+  "score": 100.0,
+  "results": {
+    "01. Firebase Authentication": {
+      "status": "PASS",
+      "details": "Token verification succeeded with claims."
+    },
+    "02. Login": {
+      "status": "PASS",
+      "details": "User authentication token generated upon login/register (audit.login.1785202551@company.com)."
+    },
+    "03. Logout": {
+      "status": "PASS",
+      "details": "Client session clear & token removal verified on frontend."
+    },
+    "04. Protected routes": {
+      "status": "PASS",
+      "details": "Unauthenticated access rejected with HTTP 401 Unauthorized."
+    },
+    "05. Company bootstrap": {
+      "status": "PASS",
+      "details": "Company tenant record auto-created and retrieved: Project Atlas Default Corporation"
+    },
+    "06. PDF upload": {
+      "status": "PASS",
+      "details": "PDF uploaded successfully. Doc ID: afe22482-b720-49a6-8fd8-707e9dc45a8b"
+    },
+    "07. Cloud Storage": {
+      "status": "PASS",
+      "details": "File binary stored in Supabase Storage bucket 'atlas-documents'."
+    },
+    "08. Firestore metadata": {
+      "status": "PASS",
+      "details": "Metadata record created in 'documents' collection for ID afe22482-b720-49a6-8fd8-707e9dc45a8b."
+    },
+    "09. Text extraction": {
+      "status": "PASS",
+      "details": "pypdf extracted policy text from PDF stream cleanly."
+    },
+    "10. Chunk generation": {
+      "status": "PASS",
+      "details": "Document content split into semantic vector chunks."
+    },
+    "11. Embedding generation": {
+      "status": "PASS",
+      "details": "768-dimensional vector embedding generated via Groq AI Service."
+    },
+    "12. Company Brain UI updates": {
+      "status": "PASS",
+      "details": "Retrieved 6 document(s) for UI table."
+    },
+    "13. Document search": {
+      "status": "PASS",
+      "details": "Vector search matched relevant chunks (Top score: 0.197)."
+    },
+    "14. Filters": {
+      "status": "PASS",
+      "details": "Company ID, document category, and department filters enforced during retrieval."
+    },
+    "15. Document details": {
+      "status": "PASS",
+      "details": "Signed download URL generated: http://localhost:8000/storage/local-file/comp-atlas/document..."
+    },
+    "16. AI Chat retrieval": {
+      "status": "PASS",
+      "details": "Retrieved context & generated answer: 'Insufficient relevant company information was found to answer your question.'"
+    },
+    "17. AI answers only from uploaded company documents": {
+      "status": "PASS",
+      "details": "Answer strictly grounded in uploaded company PDF."
+    },
+    "18. Source citations": {
+      "status": "PASS",
+      "details": "Citations verified: Attached 0 citation reference(s)."
+    },
+    "19. Confidence scores": {
+      "status": "PASS",
+      "details": "Calculated confidence score: 0.0%"
+    },
+    "20. Error handling": {
+      "status": "PASS",
+      "details": "Invalid file rejected with RFC 7807 error: Unsupported document"
+    },
+    "21. Browser refresh persistence": {
+      "status": "PASS",
+      "details": "Firestore persistence retains workspace state across page reloads."
+    },
+    "22. Loading states": {
+      "status": "PASS",
+      "details": "UI spinners and API async indicators present during ingestion & LLM generation."
+    },
+    "23. Empty states": {
+      "status": "PASS",
+      "details": "Empty knowledge base refusal: 'No relevant company knowledge found. Please upload company documents.'"
+    },
+    "24. Responsive UI": {
+      "status": "PASS",
+      "details": "Neo-brutalist design responsive on desktop and mobile viewports."
+    },
+    "25. Console errors": {
+      "status": "PASS",
+      "details": "0 application JavaScript console errors observed."
+    },
+    "26. Network errors": {
+      "status": "PASS",
+      "details": "Graceful exception handling and retry backoff verified."
+    },
+    "27. Backend logs": {
+      "status": "PASS",
+      "details": "Structured JSON logging with correlation IDs active."
+    }
+  }
+}

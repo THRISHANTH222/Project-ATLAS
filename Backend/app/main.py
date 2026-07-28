@@ -56,7 +56,7 @@ def create_app() -> FastAPI:
         title=settings.APP_NAME,
         description=(
             "Enterprise SaaS FastAPI Backend for Project Atlas. "
-            "Modular architecture built with clean abstractions, Firebase, GCS, and Gemini."
+            "Modular architecture built with clean abstractions, Firebase, GCS, and Groq."
         ),
         version="1.0.0",
         docs_url="/docs",

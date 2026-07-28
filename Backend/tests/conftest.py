@@ -18,8 +18,8 @@ test_settings_obj = Settings(
     SUPABASE_URL="https://test-project.supabase.co",
     SUPABASE_SERVICE_ROLE_KEY="mock-service-role-key",
     SUPABASE_BUCKET="test-bucket",
-    GEMINI_API_KEY="mock-gemini-api-key",
-    GEMINI_MODEL_NAME="gemini-1.5-flash",
+    GROQ_API_KEY="mock-groq-api-key",
+    GROQ_MODEL_NAME="llama-3.3-70b-versatile",
 )
 settings_module.get_settings = lambda: test_settings_obj
 

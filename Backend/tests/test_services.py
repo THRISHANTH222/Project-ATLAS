@@ -5,7 +5,7 @@ from app.config.settings import Settings
 from app.services.auth_service import FirebaseAuthService
 from app.services.db_service import FirestoreDbService
 from app.services.storage_service import GcsStorageService
-from app.services.ai_service import GeminiAIService
+from app.services.ai_service import GroqAIService
 from app.utils.exceptions import AuthenticationError, DatabaseError, StorageError
 
 
@@ -21,7 +21,7 @@ def local_settings() -> Settings:
         SUPABASE_URL="https://mock-bucket.supabase.co",
         SUPABASE_SERVICE_ROLE_KEY="mock-key",
         SUPABASE_BUCKET="mock-bucket",
-        GEMINI_API_KEY="", # Forces mock mode
+        GROQ_API_KEY="", # Forces mock mode
     )
 
 
@@ -145,7 +145,7 @@ class MockSchema(BaseModel):
 
 @pytest.mark.asyncio
 async def test_ai_service_mock_mode(local_settings: Settings) -> None:
-    ai = GeminiAIService(local_settings)
+    ai = GroqAIService(local_settings)
     assert ai.use_mock is True
 
     # Test text generation

@@ -19,7 +19,7 @@ async def check_health(
     ai: IAIService = Depends(get_ai_service),
 ) -> HealthCheckResponse:
     """
-    Perform deep integration checks for sub-services (Firestore, GCS, Gemini)
+    Perform deep integration checks for sub-services (Firestore, GCS, Groq)
     and output overall latency and service statuses.
     """
     services = {}
@@ -46,7 +46,7 @@ async def check_health(
     except Exception as e:
         services["storage"] = ServiceStatus(status="degraded", details=str(e))
 
-    # 3. Check AI Service (Gemini API)
+    # 3. Check AI Service (Groq API)
     ai_start = time.perf_counter()
     try:
         # Embedded check (or quick generation check if mock)

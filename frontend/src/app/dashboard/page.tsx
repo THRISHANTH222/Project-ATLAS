@@ -3,12 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { onAuthStateChange, UserProfile } from "@/lib/firebase";
-import { 
-  DocumentItem, 
-  ActivityItem, 
-  INITIAL_DOCUMENTS, 
-  INITIAL_ACTIVITIES 
-} from "@/lib/mockData";
+import { fetchDocumentsApi } from "@/lib/api";
+import { DocumentItem, ActivityItem } from "@/lib/mockData";
 import { 
   Plus, 
   MessageSquare, 
@@ -26,35 +22,20 @@ export default function DashboardOverview() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChange((currentUser) => {
+    const unsubscribe = onAuthStateChange(async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        const liveDocs = await fetchDocumentsApi();
+        setDocuments(liveDocs);
+      }
     });
 
-    // Load persisted mock database if present
-    if (typeof window !== "undefined") {
-      const timer = setTimeout(() => {
-        const storedDocs = localStorage.getItem("atlas_mock_docs");
-        const storedActs = localStorage.getItem("atlas_mock_acts");
-        
-        if (storedDocs) {
-          setDocuments(JSON.parse(storedDocs));
-        } else {
-          setDocuments(INITIAL_DOCUMENTS);
-          localStorage.setItem("atlas_mock_docs", JSON.stringify(INITIAL_DOCUMENTS));
-        }
+    const loadBackendData = async () => {
+      const liveDocs = await fetchDocumentsApi();
+      setDocuments(liveDocs);
+    };
 
-        if (storedActs) {
-          setActivities(JSON.parse(storedActs));
-        } else {
-          setActivities(INITIAL_ACTIVITIES);
-          localStorage.setItem("atlas_mock_acts", JSON.stringify(INITIAL_ACTIVITIES));
-        }
-      }, 0);
-      return () => {
-        unsubscribe();
-        clearTimeout(timer);
-      };
-    }
+    loadBackendData();
 
     return () => unsubscribe();
   }, []);

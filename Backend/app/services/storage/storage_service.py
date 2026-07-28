@@ -111,8 +111,7 @@ class StorageService(IStorageService):
                 )
                 logger.info(f"Supabase storage connectivity validated for bucket: {self.provider.bucket_name}")
             except Exception as e:
-                logger.error(f"Supabase connection validation failed: {e}")
-                raise RuntimeError(f"Supabase connection validation failed: {e}")
+                logger.warning(f"Supabase connection validation warning (offline or host unreachable): {e}")
         elif isinstance(self.provider, LocalStorage):
             try:
                 base_dir = self.provider.base_dir

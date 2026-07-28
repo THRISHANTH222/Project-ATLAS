@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { onAuthStateChange, UserProfile } from "@/lib/firebase";
+import { uploadDocument, deleteDocumentApi, fetchDocumentsApi, updateDocumentApi } from "@/lib/api";
 import { 
   DocumentItem, 
   ActivityItem, 
-  INITIAL_DOCUMENTS, 
   INITIAL_ACTIVITIES 
 } from "@/lib/mockData";
 import { 
@@ -18,7 +18,10 @@ import {
   FileText,
   Loader2,
   Filter,
-  UploadCloud
+  UploadCloud,
+  CheckCircle2,
+  XCircle,
+  ArrowUpDown
 } from "lucide-react";
 
 let idCounter = 0;
@@ -33,66 +36,60 @@ export default function CompanyBrainPage() {
   // Core dataset
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(true);
 
-  // Search & Filter state
+  // Search, Filter & Sort state
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSource, setFilterSource] = useState<"All" | "Notion" | "Google Drive" | "GitHub" | "Upload">("All");
+  const [sortBy, setSortBy] = useState<"name" | "vectorCount" | "updatedAt">("updatedAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Ingestion form state
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [newDocName, setNewDocName] = useState("");
   const [newDocSource, setNewDocSource] = useState<"Notion" | "Google Drive" | "GitHub" | "Upload">("Upload");
   const [newDocContent, setNewDocContent] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Explicit Validation Status State: 'idle' | 'validating' | 'accepted' | 'rejected'
+  const [validationStatus, setValidationStatus] = useState<"idle" | "validating" | "accepted" | "rejected">("idle");
+  const [uploadErrorReason, setUploadErrorReason] = useState<string | null>(null);
 
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStage, setSyncStage] = useState("");
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChange((currentUser) => {
-      setUser(currentUser);
-    });
-
-    if (typeof window !== "undefined") {
-      const timer = setTimeout(() => {
-        const storedDocs = localStorage.getItem("atlas_mock_docs");
-        const storedActs = localStorage.getItem("atlas_mock_acts");
-        
-        if (storedDocs) {
-          setDocuments(JSON.parse(storedDocs));
-        } else {
-          setDocuments(INITIAL_DOCUMENTS);
-          localStorage.setItem("atlas_mock_docs", JSON.stringify(INITIAL_DOCUMENTS));
-        }
-
-        if (storedActs) {
-          setActivities(JSON.parse(storedActs));
-        } else {
-          setActivities(INITIAL_ACTIVITIES);
-          localStorage.setItem("atlas_mock_acts", JSON.stringify(INITIAL_ACTIVITIES));
-        }
-      }, 0);
-      return () => {
-        unsubscribe();
-        clearTimeout(timer);
-      };
-    }
-
-    return () => unsubscribe();
+  // Live Refresh Documents Helper
+  const refreshDocuments = useCallback(async () => {
+    const liveDocs = await fetchDocumentsApi();
+    setDocuments(liveDocs);
+    setIsLoadingDocs(false);
   }, []);
 
-  const saveDocsToLocal = (newDocs: DocumentItem[]) => {
-    setDocuments(newDocs);
-    localStorage.setItem("atlas_mock_docs", JSON.stringify(newDocs));
-  };
+  // Auth & Live Status Polling Interval (Every 4s)
+  useEffect(() => {
+    const unsubscribe = onAuthStateChange(async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        await refreshDocuments();
+      }
+    });
 
-  const saveActsToLocal = (newActs: ActivityItem[]) => {
-    setActivities(newActs);
-    localStorage.setItem("atlas_mock_acts", JSON.stringify(newActs));
-  };
+    refreshDocuments();
+
+    // Setup live polling timer for processing status updates
+    const pollInterval = setInterval(() => {
+      refreshDocuments();
+    }, 4000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(pollInterval);
+    };
+  }, [refreshDocuments]);
 
   // Trigger Neural Sync
   const handleTriggerSync = () => {
@@ -109,6 +106,7 @@ export default function CompanyBrainPage() {
           clearInterval(interval);
           setTimeout(() => {
             setIsSyncing(false);
+            refreshDocuments();
             
             const newAct: ActivityItem = {
               id: generateId("act"),
@@ -117,7 +115,7 @@ export default function CompanyBrainPage() {
               timestamp: "Just now",
               user: user?.displayName || "System"
             };
-            saveActsToLocal([newAct, ...activities]);
+            setActivities((prev) => [newAct, ...prev]);
           }, 600);
           return 100;
         }
@@ -137,63 +135,74 @@ export default function CompanyBrainPage() {
     }, 150);
   };
 
-  // Handle document uploads
-  const handleCreateDocument = (e: React.FormEvent) => {
+  // Handle document uploads with backend validation check
+  const handleCreateDocument = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploadErrorReason(null);
+
     if (!newDocName.trim()) return;
 
     setIsUploading(true);
-    setUploadProgress(10);
+    setValidationStatus("validating");
+    setUploadProgress(25);
 
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        const next = prev + 30;
-        if (next >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            const words = newDocContent.trim() ? newDocContent.trim().split(/\s+/).length : 50;
-            const sizeInKb = Math.ceil(words * 0.005) + 1;
-            const calculatedVectors = Math.ceil(words / 15);
-
-            const newDoc: DocumentItem = {
-              id: generateId("doc"),
-              name: newDocName.trim(),
-              source: newDocSource,
-              size: `${sizeInKb} KB`,
-              vectorCount: calculatedVectors,
-              updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-              status: "Synced"
-            };
-
-            const updatedDocs = [newDoc, ...documents];
-            saveDocsToLocal(updatedDocs);
-
-            const newAct: ActivityItem = {
-              id: generateId("act"),
-              type: "upload",
-              description: `Ingested source '${newDocName.trim()}' (${newDocSource})`,
-              timestamp: "Just now",
-              user: user?.displayName || "User"
-            };
-            saveActsToLocal([newAct, ...activities]);
-
-            setIsUploading(false);
-            setIsUploadOpen(false);
-            setNewDocName("");
-            setNewDocContent("");
-            setNewDocSource("Upload");
-          }, 400);
-          return 100;
-        }
-        return next;
+    let fileToUpload = selectedFile;
+    if (!fileToUpload) {
+      const blob = new Blob([newDocContent || "Sample document content"], { type: "text/plain" });
+      fileToUpload = new File([blob], newDocName.endsWith(".txt") ? newDocName : `${newDocName}.txt`, {
+        type: "text/plain",
       });
-    }, 200);
+    }
+
+    setUploadProgress(50);
+    const result = await uploadDocument(fileToUpload, "uploads");
+    setUploadProgress(85);
+
+    if (!result.success) {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setValidationStatus("rejected");
+      setUploadErrorReason(result.reason || "Document validation rejected by backend agent.");
+      return;
+    }
+
+    // Success path -> Document Accepted & Immediately Refreshed
+    setValidationStatus("accepted");
+    setUploadProgress(100);
+
+    // Refresh document list from backend immediately
+    await refreshDocuments();
+
+    const newAct: ActivityItem = {
+      id: generateId("act"),
+      type: "upload",
+      description: `Ingested source '${newDocName}' (${newDocSource})`,
+      timestamp: "Just now",
+      user: user?.displayName || "User",
+    };
+    setActivities((prev) => [newAct, ...prev]);
+
+    setTimeout(() => {
+      setIsUploading(false);
+      setIsUploadOpen(false);
+      setNewDocName("");
+      setNewDocContent("");
+      setSelectedFile(null);
+      setValidationStatus("idle");
+      setUploadErrorReason(null);
+    }, 800);
   };
 
-  // Delete source
-  const handleDeleteDocument = (id: string, name: string) => {
-    const nextDocs = documents.filter((doc) => doc.id !== id);
-    saveDocsToLocal(nextDocs);
+  // Delete source via Backend DELETE /documents/{id}
+  const handleDeleteDocument = async (id: string, name: string) => {
+    // Optimistic state update
+    setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+
+    // Call backend API
+    await deleteDocumentApi(id);
+
+    // Refresh state from backend
+    await refreshDocuments();
 
     const newAct: ActivityItem = {
       id: generateId("act"),
@@ -202,15 +211,27 @@ export default function CompanyBrainPage() {
       timestamp: "Just now",
       user: user?.displayName || "User"
     };
-    saveActsToLocal([newAct, ...activities]);
+    setActivities((prev) => [newAct, ...prev]);
   };
 
-  // Filter sources
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSource = filterSource === "All" || doc.source === filterSource;
-    return matchesSearch && matchesSource;
-  });
+  // Filter & Sort sources
+  const processedDocuments = documents
+    .filter((doc) => {
+      const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSource = filterSource === "All" || doc.source === filterSource;
+      return matchesSearch && matchesSource;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === "name") {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortBy === "vectorCount") {
+        comparison = a.vectorCount - b.vectorCount;
+      } else {
+        comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
 
   const totalVectors = documents.reduce((sum, doc) => sum + doc.vectorCount, 0);
 
@@ -229,6 +250,14 @@ export default function CompanyBrainPage() {
         </div>
         <div className="flex items-center space-x-3">
           <button
+            onClick={() => refreshDocuments()}
+            disabled={isLoadingDocs}
+            className="flex items-center space-x-1.5 px-3.5 py-2.5 text-xs font-black text-black dark:text-white bg-white dark:bg-[#242427] border-2 border-black dark:border-white hover:bg-slate-100 dark:hover:bg-[#2D2D32] rounded-xl shadow-[3px_3px_0px_#000000] dark:shadow-[3px_3px_0px_#FFFFFF] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_#000000] dark:hover:shadow-[2px_2px_0px_#FFFFFF] transition-all cursor-pointer disabled:opacity-50 uppercase tracking-wide"
+          >
+            <RefreshCw className={`w-4 h-4 text-black dark:text-white stroke-[2.5px] ${isLoadingDocs ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </button>
+          <button
             onClick={handleTriggerSync}
             disabled={isSyncing}
             className="flex items-center space-x-1.5 px-3.5 py-2.5 text-xs font-black text-black dark:text-white bg-white dark:bg-[#242427] border-2 border-black dark:border-white hover:bg-slate-100 dark:hover:bg-[#2D2D32] rounded-xl shadow-[3px_3px_0px_#000000] dark:shadow-[3px_3px_0px_#FFFFFF] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_#000000] dark:hover:shadow-[2px_2px_0px_#FFFFFF] transition-all cursor-pointer disabled:opacity-50 uppercase tracking-wide"
@@ -237,7 +266,11 @@ export default function CompanyBrainPage() {
             <span>Sync Brain</span>
           </button>
           <button
-            onClick={() => setIsUploadOpen(true)}
+            onClick={() => {
+              setUploadErrorReason(null);
+              setValidationStatus("idle");
+              setIsUploadOpen(true);
+            }}
             className="flex items-center space-x-1 px-3.5 py-2.5 text-xs font-black text-black dark:text-white bg-purple-300 dark:bg-purple-650 hover:bg-purple-400 dark:hover:bg-purple-700 border-2 border-black dark:border-white rounded-xl shadow-[3px_3px_0px_#000000] dark:shadow-[3px_3px_0px_#FFFFFF] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_#000000] dark:hover:shadow-[2px_2px_0px_#FFFFFF] transition-all cursor-pointer uppercase tracking-wide"
           >
             <Plus className="w-4 h-4 text-black dark:text-white stroke-[3.5px]" />
@@ -270,7 +303,7 @@ export default function CompanyBrainPage() {
         {/* Filters and Search toolbar */}
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
           
-          {/* Search */}
+          {/* Search Input */}
           <div className="relative rounded-lg shadow-[3px_3px_0px_#000000] dark:shadow-[3px_3px_0px_#FFFFFF] border-2 border-black dark:border-white flex-1 max-w-md bg-white dark:bg-[#1C1C1E] transition-colors">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4.5 w-4.5 text-black dark:text-white stroke-[2.5px]" />
@@ -284,8 +317,22 @@ export default function CompanyBrainPage() {
             />
           </div>
 
-          {/* Filter Toggles */}
+          {/* Sort & Filter Toggles */}
           <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center space-x-1 mr-1 text-xs text-black dark:text-white font-black uppercase tracking-wider">
+              <ArrowUpDown className="w-3.5 h-3.5 stroke-[2.5px]" />
+              <span>Sort:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-white dark:bg-[#242427] border-2 border-black dark:border-white text-xs font-bold px-2 py-1 rounded-lg cursor-pointer"
+              >
+                <option value="updatedAt">Date Ingested</option>
+                <option value="name">Document Title</option>
+                <option value="vectorCount">Vector Count</option>
+              </select>
+            </div>
+
             <div className="flex items-center space-x-1.5 mr-1 text-xs text-black dark:text-white font-black uppercase tracking-wider">
               <Filter className="w-4 h-4 stroke-[2.5px]" />
               <span>Filter:</span>
@@ -312,8 +359,8 @@ export default function CompanyBrainPage() {
           {/* Left panel: Sources List (2/3 width) */}
           <div className="md:col-span-2 rounded-2xl border-2 border-black dark:border-white bg-white dark:bg-[#1C1C1E] p-6 space-y-4 shadow-[4px_4px_0px_#000000] dark:shadow-[4px_4px_0px_#FFFFFF] transition-colors">
             <div className="flex items-center justify-between border-b-2 border-black dark:border-white pb-4">
-              <h2 className="text-sm font-black text-black dark:text-white uppercase tracking-wider">Active Sources ({filteredDocuments.length})</h2>
-              <span className="px-2.5 py-0.5 border border-black dark:border-white bg-yellow-200 dark:bg-yellow-600 text-[9px] font-mono font-black uppercase text-black dark:text-white shadow-[1px_1px_0px_#000000] dark:shadow-[1px_1px_0px_#FFFFFF]">recall metric: 99.8%</span>
+              <h2 className="text-sm font-black text-black dark:text-white uppercase tracking-wider">Active Sources ({processedDocuments.length})</h2>
+              <span className="px-2.5 py-0.5 border border-black dark:border-white bg-yellow-200 dark:bg-yellow-600 text-[9px] font-mono font-black uppercase text-black dark:text-white shadow-[1px_1px_0px_#000000] dark:shadow-[1px_1px_0px_#FFFFFF]">Live Polling Sync</span>
             </div>
 
             <div className="overflow-x-auto border-2 border-black dark:border-white rounded-xl">
@@ -328,8 +375,8 @@ export default function CompanyBrainPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black dark:divide-white text-xs text-black dark:text-white font-semibold">
-                  {filteredDocuments.length > 0 ? (
-                    filteredDocuments.map((doc) => (
+                  {processedDocuments.length > 0 ? (
+                    processedDocuments.map((doc) => (
                       <tr key={doc.id} className="hover:bg-slate-100 dark:hover:bg-[#2E2E32] bg-white dark:bg-[#1C1C1E] transition-colors">
                         <td className="px-6 py-4 font-black text-black dark:text-white border-r border-black dark:border-white max-w-[220px] truncate">
                           <span className="flex items-center space-x-2">
@@ -362,7 +409,7 @@ export default function CompanyBrainPage() {
                   ) : (
                     <tr className="bg-white dark:bg-[#1C1C1E]">
                       <td colSpan={5} className="px-6 py-12 text-center text-slate-600 dark:text-slate-400 font-extrabold uppercase text-xs">
-                        No sources match the filter parameters.
+                        {isLoadingDocs ? "Loading company documents from backend..." : "No documents indexed in Company Brain."}
                       </td>
                     </tr>
                   )}
@@ -404,7 +451,7 @@ export default function CompanyBrainPage() {
                   { title: "Tokenizer Mode", val: "cl100k_base" },
                   { title: "Vector Database", val: "Atlas Dedicated Index" },
                   { title: "Recall Precision", val: "99.84% cosine-sim" },
-                  { title: "Dynamic Syncing", val: "Enabled" }
+                  { title: "Dynamic Syncing", val: "Enabled (Live)" }
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs pb-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0">
                     <span className="text-slate-800 dark:text-slate-400 font-extrabold">{item.title}</span>
@@ -425,7 +472,11 @@ export default function CompanyBrainPage() {
           <div className="bg-white dark:bg-[#1C1C1E] border-3 border-black dark:border-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-[8px_8px_0px_#000000] dark:shadow-[8px_8px_0px_#FFFFFF] relative">
             <button
               onClick={() => {
-                if (!isUploading) setIsUploadOpen(false);
+                if (!isUploading) {
+                  setIsUploadOpen(false);
+                  setUploadErrorReason(null);
+                  setValidationStatus("idle");
+                }
               }}
               className="absolute top-4 right-4 p-1.5 rounded-lg border-2 border-black dark:border-white bg-white dark:bg-[#242427] text-slate-500 hover:text-black dark:hover:text-white hover:bg-slate-50 dark:hover:bg-[#2E2E32] focus:outline-none cursor-pointer shadow-[2px_2px_0px_#000000] dark:shadow-[2px_2px_0px_#FFFFFF]"
             >
@@ -434,6 +485,38 @@ export default function CompanyBrainPage() {
 
             <h3 className="text-lg font-black text-black dark:text-white uppercase tracking-wide mb-2">Ingest New Document</h3>
             <p className="text-xs text-slate-800 dark:text-slate-400 font-bold mb-6">Inject knowledge files into the active Company Brain space.</p>
+
+            {/* Document Validation Indicators: Validating... / Accepted / Rejected */}
+            {validationStatus === "validating" && (
+              <div className="mb-6 p-4 rounded-xl border-2 border-purple-500 bg-purple-50 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 flex items-center space-x-3 shadow-[3px_3px_0px_#000000] dark:shadow-[3px_3px_0px_#FFFFFF]">
+                <Loader2 className="w-5 h-5 text-purple-600 animate-spin shrink-0" />
+                <div className="text-xs font-bold">
+                  <span className="font-black uppercase tracking-wider block text-purple-700 dark:text-purple-300">Validating...</span>
+                  <span>Running AI document taxonomy and confidence checks</span>
+                </div>
+              </div>
+            )}
+
+            {validationStatus === "accepted" && (
+              <div className="mb-6 p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 flex items-center space-x-3 shadow-[3px_3px_0px_#000000] dark:shadow-[3px_3px_0px_#FFFFFF]">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div className="text-xs font-bold">
+                  <span className="font-black uppercase tracking-wider block text-emerald-700 dark:text-emerald-300">Accepted</span>
+                  <span>Document taxonomy approved & ingested into vector store</span>
+                </div>
+              </div>
+            )}
+
+            {validationStatus === "rejected" && (
+              <div className="mb-6 p-4 rounded-xl border-2 border-red-600 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 flex items-start space-x-3 shadow-[3px_3px_0px_#000000] dark:shadow-[3px_3px_0px_#FFFFFF]">
+                <XCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div className="text-xs font-semibold">
+                  <span className="font-black uppercase tracking-wider block mb-1 text-red-700 dark:text-red-300">Rejected</span>
+                  <span className="block font-bold mb-1">Reason:</span>
+                  <span className="leading-relaxed">{uploadErrorReason || "Document taxonomy check failed."}</span>
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleCreateDocument} className="space-y-4">
               {/* Source Select */}
@@ -447,6 +530,9 @@ export default function CompanyBrainPage() {
                     setNewDocSource(val);
                     setNewDocName("");
                     setNewDocContent("");
+                    setSelectedFile(null);
+                    setUploadErrorReason(null);
+                    setValidationStatus("idle");
                   }}
                   className="block w-full px-4.5 py-3.5 bg-[#FAF9F6] dark:bg-[#18181A] border-2 border-black dark:border-white rounded-xl text-xs font-semibold text-black dark:text-white focus:outline-none focus:bg-white dark:focus:bg-[#242427] transition-colors disabled:opacity-50 cursor-pointer"
                 >
@@ -483,17 +569,17 @@ export default function CompanyBrainPage() {
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          setSelectedFile(file);
                           setNewDocName(file.name);
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            setNewDocContent(event.target?.result as string || "");
-                          };
-                          reader.readAsText(file);
+                          setUploadErrorReason(null);
+                          setValidationStatus("idle");
                         }
                       }}
                     />
                     <UploadCloud className="w-8 h-8 text-black dark:text-white mb-2 stroke-[2px]" />
-                    <span className="text-xs font-black uppercase text-black dark:text-white">Drag & Drop or Click to Select File</span>
+                    <span className="text-xs font-black uppercase text-black dark:text-white">
+                      {selectedFile ? selectedFile.name : "Drag & Drop or Click to Select File"}
+                    </span>
                     <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-1">PDF, TXT, CSV, DOCX up to 10MB</span>
                   </div>
                 </div>
@@ -515,7 +601,7 @@ export default function CompanyBrainPage() {
               {isUploading && (
                 <div className="pt-2">
                   <div className="flex items-center justify-between text-[9px] font-black text-black dark:text-white uppercase tracking-wider mb-1">
-                    <span>Processing vectors ({uploadProgress}%)</span>
+                    <span>Validating taxonomy & processing vectors ({uploadProgress}%)</span>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   </div>
                   <div className="w-full bg-[#FAF9F6] dark:bg-[#18181A] h-3.5 rounded-full overflow-hidden border-2 border-black dark:border-white shadow-[1px_1px_0px_#000000] dark:shadow-[1px_1px_0px_#FFFFFF]">
@@ -529,7 +615,11 @@ export default function CompanyBrainPage() {
                 <button
                   type="button"
                   disabled={isUploading}
-                  onClick={() => setIsUploadOpen(false)}
+                  onClick={() => {
+                    setIsUploadOpen(false);
+                    setUploadErrorReason(null);
+                    setValidationStatus("idle");
+                  }}
                   className="px-5 py-2.5 rounded-xl border-2 border-black dark:border-white bg-white dark:bg-[#242427] hover:bg-slate-100 dark:hover:bg-[#2E2E32] text-xs font-black text-black dark:text-white shadow-[2.5px_2.5px_0px_#000000] dark:shadow-[2.5px_2.5px_0px_#FFFFFF] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1.5px_1.5px_0px_#000000] dark:hover:shadow-[1.5px_1.5px_0px_#FFFFFF] transition-all cursor-pointer disabled:opacity-50 uppercase tracking-wide"
                 >
                   Cancel

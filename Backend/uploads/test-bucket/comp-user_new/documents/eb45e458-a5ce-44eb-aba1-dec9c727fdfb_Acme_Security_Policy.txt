@@ -1,0 +1,4 @@
+PROJECT ATLAS ACME ENTERPRISE SECURITY POLICY
+Document ID: POL-ACME-2026
+Subject: Multi-Factor Authentication & Workspace Access Standard
+All employees must use FIDO2 security keys for VPN access.
