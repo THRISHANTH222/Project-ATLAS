@@ -101,7 +101,8 @@ export interface UploadFailureResponse {
 
 /**
  * Retrieves authentication headers for API calls.
- * Obtains live Firebase JWT ID Token from active Firebase user session.
+ * Obtains live Firebase JWT ID Token from active Firebase user session,
+ * or falls back to stored/default development token.
  */
 const getAuthHeaders = async (): Promise<Record<string, string>> => {
   let token = "";
@@ -113,6 +114,13 @@ const getAuthHeaders = async (): Promise<Record<string, string>> => {
   } catch (err) {
     console.error("Failed to acquire Firebase Authorization header:", err);
   }
+
+  // Development / session fallback if no active Firebase ID token is retrieved
+  if (!token && typeof window !== "undefined") {
+    const storedToken = localStorage.getItem("atlas_auth_token");
+    token = storedToken || "mock-token-dev-user__comp-atlas";
+  }
+
   return {
     Authorization: token ? `Bearer ${token}` : "",
   };

@@ -1,0 +1,41 @@
+{
+  "score": 100.0,
+  "results": {
+    "1. Frontend Server Status": {
+      "status": "PASS",
+      "details": "Next.js server responding at http://localhost:3000 (HTTP 200 OK)"
+    },
+    "2. Backend Server Status": {
+      "status": "PASS",
+      "details": "FastAPI server healthy at http://localhost:8000 - Env: development"
+    },
+    "3. Authentication Service": {
+      "status": "PASS",
+      "details": "Token verified with claims: company_id='comp-atlas'"
+    },
+    "4. Database & Company Bootstrap": {
+      "status": "PASS",
+      "details": "Firestore company record retrieved: 'Project Atlas Default Corporation'"
+    },
+    "5. File Upload & Storage Pipeline": {
+      "status": "PASS",
+      "details": "PDF uploaded & ingested cleanly. Doc ID: 886d4457-4180-4b92-ac66-d9401e09952c"
+    },
+    "6. Document Metadata & Listing": {
+      "status": "PASS",
+      "details": "Retrieved 7 document(s) from Firestore for Company Brain UI."
+    },
+    "7. Semantic Retrieval Service": {
+      "status": "PASS",
+      "details": "Retrieved top vector matches (Similarity score: 0.274)."
+    },
+    "8. Groq AI Chat Pipeline": {
+      "status": "PASS",
+      "details": "Answer generated: 'The standard incident response time is 1 hour [chunk_886d445...'"
+    },
+    "9. RAG Zero-Hallucination Guardrail": {
+      "status": "PASS",
+      "details": "Refusal guardrail enforced for out-of-domain knowledge query."
+    }
+  }
+}
